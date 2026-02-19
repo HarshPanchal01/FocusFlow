@@ -6,6 +6,7 @@ import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
 import 'screens/insights_screen.dart';
+import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -49,6 +50,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     const FocusScreen(),
     const SuggestionsScreen(),
     const InsightsScreen(),
+    const SettingsScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -77,6 +79,10 @@ class _MainScaffoldState extends State<MainScaffold> {
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
             label: 'Insights',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
         currentIndex: _selectedIndex,

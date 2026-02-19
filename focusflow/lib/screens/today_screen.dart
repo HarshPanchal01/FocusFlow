@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
 import 'add_task_screen.dart';
+import '../theme/app_theme.dart';
 
 /// TODAY screen/the main hub.
 /// Layout kinda mirrors the Figma mockup:
@@ -429,7 +430,7 @@ class _TaskTile extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 2),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.background,
+          color: AppColors.surface,
           border: Border.all(color: Theme.of(context).colorScheme.primary),
           borderRadius: BorderRadius.circular(8),
         ),
@@ -441,6 +442,7 @@ class _TaskTile extends StatelessWidget {
           leading: Checkbox(
             value: task.isCompleted,
             onChanged: (_) => onToggle(),
+            activeColor: AppColors.primary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
@@ -449,7 +451,7 @@ class _TaskTile extends StatelessWidget {
             task.title,
             style: TextStyle(
               decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-              color: task.isCompleted ? Colors.grey : null,
+              color: task.isCompleted ? Colors.grey : AppColors.textPrimary,
             ),
           ),
           subtitle: Row(
