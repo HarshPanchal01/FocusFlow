@@ -6,6 +6,7 @@ import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
 import 'screens/insights_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,10 +27,7 @@ class FocusFlowApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'FocusFlow',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
+        theme: appTheme,
         home: const MainScaffold(),
       ),
     );
@@ -63,21 +61,15 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('FocusFlow'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('FocusFlow', style: TextStyle(color: Colors.white)),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.today),
-            label: 'Today',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.timer),
-            label: 'Focus',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.today), label: 'Today'),
+          BottomNavigationBarItem(icon: Icon(Icons.timer), label: 'Focus'),
           BottomNavigationBarItem(
             icon: Icon(Icons.lightbulb_outline),
             label: 'Suggestions',
@@ -88,7 +80,7 @@ class _MainScaffoldState extends State<MainScaffold> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.deepPurple,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
         onTap: _onItemTapped,
       ),
     );
