@@ -381,13 +381,21 @@ class _FocusScreenState extends State<FocusScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // TODO: Display interruptions dynamically from state or provider
+              // Always show the white box, even if empty
               Expanded(
-                child: Center(
-                  child: Text(
-                    'No interruptions logged yet.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'No interruptions logged yet.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ),

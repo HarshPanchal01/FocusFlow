@@ -67,15 +67,19 @@ class _TodayScreenState extends State<TodayScreen> {
             _DailyFocusBanner(),
             const SizedBox(height: 20),
 
-            // Tasks header and button to add new task
-            Text(
-              'Tasks',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            // Tasks header and inline new task button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Tasks',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                _NewTaskButton(onTap: _openAddTask),
+              ],
             ),
-            const SizedBox(height: 8),
-            _NewTaskButton(onTap: _openAddTask),
             const SizedBox(height: 12),
 
             // Show tasks separated by how urgent they are
@@ -301,34 +305,21 @@ class _NewTaskButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      // Styled container for the button
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
-          borderRadius: BorderRadius.circular(8),
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+      label: Text(
+        'New task',
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: Theme.of(context).colorScheme.onPrimary,
         ),
-        child: Row(
-          children: [
-            // Plus icon
-            Icon(
-              Icons.add,
-              size: 20,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
-            const SizedBox(width: 8),
-            // Label text
-            Text(
-              'New task',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimary,
-              ),
-            ),
-          ],
-        ),
+      ),
+      style: TextButton.styleFrom(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        minimumSize: const Size(0, 40),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
