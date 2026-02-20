@@ -46,11 +46,12 @@ class SuggestionsScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
-                    color: AppColors.divider.withOpacity(0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+                    color: Color(0x22000000),
+                    blurRadius: 8,
+                    spreadRadius: 0.5,
+                    offset: Offset(0, 3),
                   ),
                 ],
               ),

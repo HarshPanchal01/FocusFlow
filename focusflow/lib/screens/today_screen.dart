@@ -265,6 +265,14 @@ class _DailyFocusBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primary,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000), // Softer shadow
+            blurRadius: 8,
+            spreadRadius: 0.5,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,21 +313,33 @@ class _NewTaskButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onTap,
-      icon: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
-      label: Text(
-        'New task',
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: Theme.of(context).colorScheme.onPrimary,
-        ),
+    return Container(
+      decoration: const BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 8,
+            spreadRadius: 0.5,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
-      style: TextButton.styleFrom(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        minimumSize: const Size(0, 40),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+        label: Text(
+          'New task',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          minimumSize: const Size(0, 40),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
     );
   }
@@ -424,6 +444,14 @@ class _TaskTile extends StatelessWidget {
           color: AppColors.surface,
           border: Border.all(color: Theme.of(context).colorScheme.primary),
           borderRadius: BorderRadius.circular(8),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 8,
+              spreadRadius: 0.5,
+              offset: Offset(0, 3),
+            ),
+          ],
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
@@ -460,11 +488,12 @@ class _TaskTile extends StatelessWidget {
                     border: Border.all(
                       color: isOverdue ? Colors.red : Colors.grey.shade300,
                     ),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
+                        color: Color(0x22000000),
+                        blurRadius: 8,
+                        spreadRadius: 0.5,
+                        offset: Offset(0, 3),
                       ),
                     ],
                   ),
@@ -488,11 +517,12 @@ class _TaskTile extends StatelessWidget {
                     color: Theme.of(context).colorScheme.background,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey.shade300),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
+                        color: Color(0x22000000),
+                        blurRadius: 8,
+                        spreadRadius: 0.5,
+                        offset: Offset(0, 3),
                       ),
                     ],
                   ),

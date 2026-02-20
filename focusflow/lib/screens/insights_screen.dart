@@ -81,8 +81,19 @@ class _WeeklyCompletionCard extends StatelessWidget {
         // TODO: Calculate percentChange vs last week if needed
         final int percentChange = 0; // Placeholder
 
-        return Card(
-          color: AppColors.surface,
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 8,
+                spreadRadius: 0.5,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -140,8 +151,19 @@ class _InterruptionsCard extends StatelessWidget {
     final int notifications = 14; // placeholder
     final int chatMessages = 8; // placeholder
     final int phoneCalls = 3; // placeholder
-    return Card(
-      color: AppColors.surface, // Match SettingsScreen card background
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 8,
+            spreadRadius: 0.5,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -189,8 +211,19 @@ class _ProductiveHoursCard extends StatelessWidget {
       {'time': '2:00 PM - 4:00 PM', 'tasks': 4},
       {'time': '4:00 PM - 6:00 PM', 'tasks': 3},
     ];
-    return Card(
-      color: AppColors.surface, // Match SettingsScreen card background
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 8,
+            spreadRadius: 0.5,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
