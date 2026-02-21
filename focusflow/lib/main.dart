@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/timer_provider.dart';
+import 'providers/insights_provider.dart';
 import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
@@ -26,6 +27,7 @@ class FocusFlowApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) => TimerProvider()),
+        ChangeNotifierProvider(create: (_) => InsightsProvider()),
         // TODO: Add more providers here as features grow
       ],
       child: MaterialApp(

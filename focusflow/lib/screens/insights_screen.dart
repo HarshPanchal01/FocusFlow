@@ -1,262 +1,216 @@
 import 'package:flutter/material.dart';
-
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../providers/insights_provider.dart';
 import '../theme/app_theme.dart';
-import '../providers/task_provider.dart';
 
-class InsightsScreen extends StatelessWidget {
-  const InsightsScreen({Key? key}) : super(key: key);
+class InsightsScreen extends StatefulWidget {
+  const InsightsScreen({super.key});
+
+  @override
+  State<InsightsScreen> createState() => _InsightsScreenState();
+}
+
+class _InsightsScreenState extends State<InsightsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load insights when the screen is first shown
+    Future.microtask(() => context.read<InsightsProvider>().loadWeeklyInsights());
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // This week's completion
-            const Text(
-              "This week's completion",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            _WeeklyCompletionCard(),
-            const SizedBox(height: 24),
-            // Interruptions Pattern
-            const Text(
-              'Interruptions Pattern',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            _InterruptionsCard(),
-            const SizedBox(height: 24),
-            // Most Productive Hours
-            const Text(
-              'Most Productive Hours',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            _ProductiveHoursCard(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Card that shows this week's completion progress based on tasks created and completed this week.
-class _WeeklyCompletionCard extends StatelessWidget {
-  const _WeeklyCompletionCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<TaskProvider>(
-      builder: (context, provider, _) {
-        // Get current week's start and end
-        final now = DateTime.now();
-        final weekStart = DateTime(
-          now.year,
-          now.month,
-          now.day - (now.weekday - 1),
-        );
-        final weekEnd = weekStart.add(const Duration(days: 7));
-
-        // Filter tasks created this week
-        final tasksThisWeek = provider.tasks
-            .where(
-              (task) =>
-                  task.createdAt.isAfter(
-                    weekStart.subtract(const Duration(seconds: 1)),
-                  ) &&
-                  task.createdAt.isBefore(weekEnd),
-            )
-            .toList();
-        final totalTasks = tasksThisWeek.length;
-        final completedTasks = tasksThisWeek.where((t) => t.isCompleted).length;
-        final completionPercent = totalTasks == 0
-            ? 0.0
-            : completedTasks / totalTasks;
-
-        // TODO: Calculate percentChange vs last week if needed
-        final int percentChange = 0; // Placeholder
-
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 8,
-                spreadRadius: 0.5,
-                offset: Offset(0, 3),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Weekly Insights',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Total Focus Time Card
+              Consumer<InsightsProvider>(
+                builder: (context, provider, _) {
+                  return _buildSummaryCard(context, provider);
+                },
+              ),
+              
+              const SizedBox(height: 24),
+              
+              Text(
+                'Daily Focus Activity',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Bar Chart
+              Expanded(
+                child: Consumer<InsightsProvider>(
+                  builder: (context, provider, _) {
+                    if (provider.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (provider.weeklyTotalHours == 0) {
+                      return Center(
+                        child: Text(
+                          'No focus data for this week yet.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      );
+                    }
+                    return _buildWeeklyChart(context, provider);
+                  },
+                ),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${(completionPercent * 100).toInt()}%',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      percentChange >= 0
-                          ? '+$percentChange% vs. last week'
-                          : '$percentChange% vs. last week',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: completionPercent,
-                    backgroundColor: Colors.grey[400],
-                    color: AppColors.primary,
-                    minHeight: 8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$completedTasks of $totalTasks tasks completed',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _InterruptionsCard extends StatelessWidget {
-  const _InterruptionsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: Fetch real interruptions data from provider/service
-    // TODO: Replace hardcoded interruptions with actual notification/chat/phone call counts for the week
-    final int notifications = 14; // placeholder
-    final int chatMessages = 8; // placeholder
-    final int phoneCalls = 3; // placeholder
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 8,
-            spreadRadius: 0.5,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _InterruptionRow('Notifications', notifications),
-            _InterruptionRow('Chat Messages', chatMessages),
-            _InterruptionRow('Phone Calls', phoneCalls),
-          ],
         ),
       ),
     );
   }
-}
 
-class _InterruptionRow extends StatelessWidget {
-  final String label;
-  final int count;
-  const _InterruptionRow(this.label, this.count);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildSummaryCard(BuildContext context, InsightsProvider provider) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 16)),
-          Text(count.toString(), style: const TextStyle(fontSize: 16)),
+          const Text(
+            'Total Focus Time',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${provider.weeklyTotalHours.toStringAsFixed(1)} hrs',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'This Week',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
   }
-}
 
-class _ProductiveHoursCard extends StatelessWidget {
-  const _ProductiveHoursCard();
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: Fetch real productive hours data from provider/service
-    // TODO: Replace hardcoded productive hours with actual calculation based on task completion timestamps
-    final List<Map<String, dynamic>> productiveHours = [
-      {'time': '9:00 AM - 12:00 PM', 'tasks': 10},
-      {'time': '2:00 PM - 4:00 PM', 'tasks': 4},
-      {'time': '4:00 PM - 6:00 PM', 'tasks': 3},
-    ];
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 8,
-            spreadRadius: 0.5,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text(''),
-                Text(
-                  'Tasks Completed',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ...productiveHours.asMap().entries.map((entry) {
-              final idx = entry.key + 1;
-              final hour = entry.value['time'];
-              final tasks = entry.value['tasks'];
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('$idx. $hour', style: const TextStyle(fontSize: 16)),
-                    Text('$tasks', style: const TextStyle(fontSize: 16)),
-                  ],
-                ),
+  Widget _buildWeeklyChart(BuildContext context, InsightsProvider provider) {
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: (provider.dailyTotals.values.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1.0, 24.0),
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            tooltipBgColor: Colors.blueGrey,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              return BarTooltipItem(
+                '${rod.toY.toStringAsFixed(1)} hrs',
+                const TextStyle(color: Colors.white),
               );
-            }).toList(),
-          ],
+            },
+          ),
         ),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (double value, TitleMeta meta) {
+                const style = TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                );
+                String text;
+                switch (value.toInt()) {
+                  case 1: text = 'M'; break;
+                  case 2: text = 'T'; break;
+                  case 3: text = 'W'; break;
+                  case 4: text = 'T'; break;
+                  case 5: text = 'F'; break;
+                  case 6: text = 'S'; break;
+                  case 7: text = 'S'; break;
+                  default: text = '';
+                }
+                return SideTitleWidget(
+                  axisSide: meta.axisSide,
+                  space: 4,
+                  child: Text(text, style: style),
+                );
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        gridData: FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        barGroups: List.generate(7, (index) {
+          final day = index + 1;
+          final value = provider.dailyTotals[day] ?? 0.0;
+          return BarChartGroupData(
+            x: day,
+            barRods: [
+              BarChartRodData(
+                toY: value,
+                color: value > 0 ? AppColors.secondary : Colors.grey.shade300,
+                width: 16,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
