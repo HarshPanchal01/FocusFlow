@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
 import 'add_task_screen.dart';
+import '../theme/app_theme.dart';
 
 /// TODAY screen/the main hub.
 /// Layout kinda mirrors the Figma mockup:
@@ -26,9 +27,7 @@ class _TodayScreenState extends State<TodayScreen> {
   void initState() {
     super.initState();
     // Load all tasks when the screen first appears
-    Future.microtask(
-      () => context.read<TaskProvider>().loadTasks(),
-    );
+    Future.microtask(() => context.read<TaskProvider>().loadTasks());
   }
 
   // Go to the screen to create a new task
@@ -43,9 +42,7 @@ class _TodayScreenState extends State<TodayScreen> {
   void _openEditTask(Task task) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => AddTaskScreen(existingTask: task),
-      ),
+      MaterialPageRoute(builder: (_) => AddTaskScreen(existingTask: task)),
     );
   }
 
@@ -70,16 +67,19 @@ class _TodayScreenState extends State<TodayScreen> {
             _DailyFocusBanner(),
             const SizedBox(height: 20),
 
-            // Tasks header and button to add new task
-            Text(
-              'Tasks',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+            // Tasks header and inline new task button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Tasks',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                _NewTaskButton(onTap: _openAddTask),
+              ],
             ),
-            const SizedBox(height: 8),
-            _NewTaskButton(onTap: _openAddTask),
             const SizedBox(height: 12),
 
             // Show tasks separated by how urgent they are
@@ -90,8 +90,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 tasks: tasksByPriority[Priority.high]!,
                 onTap: _openEditTask,
                 onToggle: (task) => provider.toggleCompletion(task),
-                onDelete: (task) =>
-                    _confirmDelete(context, provider, task),
+                onDelete: (task) => _confirmDelete(context, provider, task),
               ),
 
             if (tasksByPriority[Priority.medium]!.isNotEmpty)
@@ -101,8 +100,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 tasks: tasksByPriority[Priority.medium]!,
                 onTap: _openEditTask,
                 onToggle: (task) => provider.toggleCompletion(task),
-                onDelete: (task) =>
-                    _confirmDelete(context, provider, task),
+                onDelete: (task) => _confirmDelete(context, provider, task),
               ),
 
             if (tasksByPriority[Priority.low]!.isNotEmpty)
@@ -112,8 +110,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 tasks: tasksByPriority[Priority.low]!,
                 onTap: _openEditTask,
                 onToggle: (task) => provider.toggleCompletion(task),
-                onDelete: (task) =>
-                    _confirmDelete(context, provider, task),
+                onDelete: (task) => _confirmDelete(context, provider, task),
               ),
 
             // Hint text if there are no tasks
@@ -123,10 +120,9 @@ class _TodayScreenState extends State<TodayScreen> {
                 child: Center(
                   child: Text(
                     'Tap "+ New task" above to get started',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: Colors.grey),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
                   ),
                 ),
               ),
@@ -135,8 +131,7 @@ class _TodayScreenState extends State<TodayScreen> {
             if (completed.isNotEmpty) ...[
               const Divider(height: 32),
               InkWell(
-                onTap: () =>
-                    setState(() => _showCompleted = !_showCompleted),
+                onTap: () => setState(() => _showCompleted = !_showCompleted),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -153,19 +148,20 @@ class _TodayScreenState extends State<TodayScreen> {
                       // Show count of completed tasks
                       Text(
                         'Completed (${completed.length})',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(color: Colors.grey),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleSmall?.copyWith(color: Colors.grey),
                       ),
                       const Spacer(),
                       // Only show the clear button when section is expanded
                       if (_showCompleted)
                         TextButton(
-                          onPressed: () => _confirmClearCompleted(
-                              context, provider),
-                          child: const Text('Clear All',
-                              style: TextStyle(fontSize: 12)),
+                          onPressed: () =>
+                              _confirmClearCompleted(context, provider),
+                          child: const Text(
+                            'Clear All',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
                     ],
                   ),
@@ -177,8 +173,7 @@ class _TodayScreenState extends State<TodayScreen> {
                     task: task,
                     onTap: () => _openEditTask(task),
                     onToggle: () => provider.toggleCompletion(task),
-                    onDelete: () =>
-                        _confirmDelete(context, provider, task),
+                    onDelete: () => _confirmDelete(context, provider, task),
                   ),
                 ),
             ],
@@ -190,7 +185,10 @@ class _TodayScreenState extends State<TodayScreen> {
 
   // Show a popup to confirm deletion before removing
   Future<void> _confirmDelete(
-      BuildContext context, TaskProvider provider, Task task) async {
+    BuildContext context,
+    TaskProvider provider,
+    Task task,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -199,12 +197,12 @@ class _TodayScreenState extends State<TodayScreen> {
         content: Text('Delete "${task.title}"? This cannot be undone.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -214,31 +212,34 @@ class _TodayScreenState extends State<TodayScreen> {
       await provider.deleteTask(task.id!);
       if (context.mounted) {
         // Show a message confirming the deletion
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"${task.title}" deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('"${task.title}" deleted')));
       }
     }
   }
 
   // Show popup to confirm clearing all completed tasks
   Future<void> _confirmClearCompleted(
-      BuildContext context, TaskProvider provider) async {
+    BuildContext context,
+    TaskProvider provider,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Clear Completed'),
         content: const Text(
-            'Remove all completed tasks? This cannot be undone.'),
+          'Remove all completed tasks? This cannot be undone.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             // Red text to indicate this is a destructive action
-            child:
-                const Text('Clear', style: TextStyle(color: Colors.red)),
+            child: const Text('Clear', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -262,14 +263,26 @@ class _DailyFocusBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
+        color: Theme.of(context).colorScheme.primary,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000), // Softer shadow
+            blurRadius: 8,
+            spreadRadius: 0.5,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Daily Focus Time',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Daily Focus Time',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
           const SizedBox(height: 12),
           // Progress bar showing focus time
           ClipRRect(
@@ -283,10 +296,9 @@ class _DailyFocusBanner extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Time remaining: 0 hrs  •  Target: 4 hrs',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: Colors.grey.shade700),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
         ],
       ),
@@ -301,30 +313,32 @@ class _NewTaskButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      // Styled container for the button
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
+    return Container(
+      decoration: const BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 8,
+            spreadRadius: 0.5,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+        label: Text(
+          'New task',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
         ),
-        child: Row(
-          children: [
-            // Plus icon
-            Icon(Icons.add, size: 20, color: Colors.grey.shade600),
-            const SizedBox(width: 8),
-            // Label text
-            Text(
-              'New task',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(color: Colors.grey.shade600),
-            ),
-          ],
+        style: TextButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          minimumSize: const Size(0, 40),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
     );
@@ -361,19 +375,18 @@ class _PrioritySection extends StatelessWidget {
               // Priority level label
               Text(
                 label,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(color: color, fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(width: 8),
               // Show how many tasks are in this priority level
               Text(
                 '${tasks.length} ${tasks.length == 1 ? "task" : "tasks"}',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.grey),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey),
               ),
             ],
           ),
@@ -407,7 +420,8 @@ class _TaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOverdue = task.dueDate != null &&
+    final isOverdue =
+        task.dueDate != null &&
         task.dueDate!.isBefore(DateTime.now()) &&
         !task.isCompleted;
     // Check if the task is late
@@ -427,65 +441,107 @@ class _TaskTile extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 2),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade200),
+          color: AppColors.surface,
+          border: Border.all(color: Theme.of(context).colorScheme.primary),
           borderRadius: BorderRadius.circular(8),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 8,
+              spreadRadius: 0.5,
+              offset: Offset(0, 3),
+            ),
+          ],
         ),
         child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-          // Checkbox to mark the task as done
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 0,
+          ),
           leading: Checkbox(
             value: task.isCompleted,
             onChanged: (_) => onToggle(),
+            activeColor: AppColors.primary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
           ),
           title: Text(
             task.title,
-            // Strike through if the task is done
             style: TextStyle(
-              decoration:
-                  task.isCompleted ? TextDecoration.lineThrough : null,
-              color: task.isCompleted ? Colors.grey : null,
+              decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+              color: task.isCompleted ? Colors.grey : AppColors.textPrimary,
             ),
           ),
           subtitle: Row(
             children: [
-              // Show the due date if it's set
+              // Show the due date if it's set, as a pill badge
               if (task.dueDate != null) ...[
-                Text(
-                  _formatDueLabel(task.dueDate!),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        // Red color if the task is overdue
-                        color: isOverdue ? Colors.red : null,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.background,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isOverdue ? Colors.red : Colors.grey.shade300,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x22000000),
+                        blurRadius: 8,
+                        spreadRadius: 0.5,
+                        offset: Offset(0, 3),
                       ),
+                    ],
+                  ),
+                  child: Text(
+                    _formatDueLabel(task.dueDate!),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: isOverdue ? Colors.red : Colors.black,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
               ],
               // Show the category badge if it's not generic
               if (task.category != 'General') ...[
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
                   ),
-                  child: Text(task.category,
-                      style: Theme.of(context).textTheme.labelSmall),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.background,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x22000000),
+                        blurRadius: 8,
+                        spreadRadius: 0.5,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    task.category,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.black),
+                  ),
                 ),
                 const SizedBox(width: 8),
               ],
             ],
           ),
-          // Show how long the task should take
           trailing: Text(
             '${task.durationMinutes} min',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: Colors.grey),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey),
           ),
           onTap: onTap,
         ),

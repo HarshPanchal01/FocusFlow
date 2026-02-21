@@ -65,16 +65,20 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     // If editing, fill in all the existing values
     final task = widget.existingTask;
     _titleController = TextEditingController(text: task?.title ?? '');
-    _descriptionController =
-        TextEditingController(text: task?.description ?? '');
-    _durationController =
-        TextEditingController(text: (task?.durationMinutes ?? 25).toString());
+    _descriptionController = TextEditingController(
+      text: task?.description ?? '',
+    );
+    _durationController = TextEditingController(
+      text: (task?.durationMinutes ?? 25).toString(),
+    );
     if (task != null) {
       _priority = task.priority;
       _dueDate = task.dueDate;
       if (task.dueDate != null) {
-        _dueTime =
-            TimeOfDay(hour: task.dueDate!.hour, minute: task.dueDate!.minute);
+        _dueTime = TimeOfDay(
+          hour: task.dueDate!.hour,
+          minute: task.dueDate!.minute,
+        );
       }
       _category = task.category;
     }
@@ -224,8 +228,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               const SizedBox(height: 16),
 
               // Choose how important this is
-              Text('Priority',
-                  style: Theme.of(context).textTheme.titleSmall),
+              Text('Priority', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               SegmentedButton<Priority>(
                 segments: const [
@@ -252,8 +255,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               const SizedBox(height: 16),
 
               // Set when the task is due
-              Text('Due Date',
-                  style: Theme.of(context).textTheme.titleSmall),
+              Text('Due Date', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               Row(
                 children: [
