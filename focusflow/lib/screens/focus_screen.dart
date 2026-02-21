@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/cupertino.dart';
 import '../providers/task_provider.dart';
+import '../providers/timer_provider.dart';
 import '../models/task.dart';
 import '../theme/app_theme.dart';
-import 'dart:async';
-import 'package:flutter/cupertino.dart';
 
 class FocusScreen extends StatefulWidget {
   const FocusScreen({super.key});
@@ -14,82 +14,49 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> {
-  Task? _selectedTask;
+  // Local state for the picker, to avoid rebuilding the provider on every scroll tick
+  int _pickerHours = 0;
+  int _pickerMinutes = 25;
+  int _pickerSeconds = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize picker values from provider if needed, or default
+    final timerProvider = context.read<TimerProvider>();
+    if (timerProvider.totalSeconds > 0) {
+      final duration = Duration(seconds: timerProvider.totalSeconds);
+      _pickerHours = duration.inHours;
+      _pickerMinutes = duration.inMinutes % 60;
+      _pickerSeconds = duration.inSeconds % 60;
+    } else {
+      // Default startup state
+      timerProvider.setDuration(0, 25, 0);
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final tasks = Provider.of<TaskProvider>(context).incompleteTasks;
-    if (_selectedTask == null && tasks.isNotEmpty) {
-      setState(() {
-        _selectedTask = tasks.first;
+    // Auto-select first task if none selected
+    final timerProvider = context.read<TimerProvider>();
+    final taskProvider = context.read<TaskProvider>();
+    
+    if (timerProvider.selectedTask == null && taskProvider.incompleteTasks.isNotEmpty) {
+      // Defer to next frame to avoid setState during build
+      Future.microtask(() {
+        timerProvider.selectTask(taskProvider.incompleteTasks.first);
       });
     }
   }
 
-  int? totalSeconds;
-  int secondsLeft = 0;
-  bool isRunning = false;
-  bool timerStarted = false;
-  Timer? _timer;
-  int _selectedHours = 0;
-  int _selectedMinutes = 25;
-  int _selectedSeconds = 0;
-
-  void _startTimer() {
-    int total =
-        _selectedHours * 3600 + _selectedMinutes * 60 + _selectedSeconds;
-    if (total <= 0) return;
-    setState(() {
-      totalSeconds = total;
-      secondsLeft = totalSeconds!;
-      isRunning = true;
-      timerStarted = true;
-    });
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!isRunning) return;
-      if (secondsLeft > 0) {
-        setState(() {
-          secondsLeft--;
-        });
-      } else {
-        setState(() {
-          isRunning = false;
-        });
-        _timer?.cancel();
-      }
-    });
-  }
-
-  void _pauseOrResume() {
-    setState(() {
-      isRunning = !isRunning;
-    });
-    if (isRunning && (_timer == null || !_timer!.isActive)) {
-      _startTimer();
-    }
-  }
-
-  void _endSession() {
-    setState(() {
-      timerStarted = false;
-      isRunning = false;
-      totalSeconds = null;
-      secondsLeft = 0;
-      _selectedHours = 0;
-      _selectedMinutes = 25;
-      _selectedSeconds = 0;
-    });
-    _timer?.cancel();
-  }
-
   void _showTimerPicker() async {
-    Duration initial = Duration(
-      hours: _selectedHours,
-      minutes: _selectedMinutes,
-      seconds: _selectedSeconds,
-    );
-    Duration tempDuration = initial;
+    final timerProvider = context.read<TimerProvider>();
+    // Current duration from provider
+    final initialDuration = Duration(seconds: timerProvider.totalSeconds);
+    
+    Duration tempDuration = initialDuration;
+
     await showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -101,7 +68,7 @@ class _FocusScreenState extends State<FocusScreen> {
               Expanded(
                 child: CupertinoTimerPicker(
                   mode: CupertinoTimerPickerMode.hms,
-                  initialTimerDuration: initial,
+                  initialTimerDuration: initialDuration,
                   minuteInterval: 1,
                   secondInterval: 1,
                   onTimerDurationChanged: (Duration newDuration) {
@@ -114,10 +81,15 @@ class _FocusScreenState extends State<FocusScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      _selectedHours = tempDuration.inHours;
-                      _selectedMinutes = tempDuration.inMinutes % 60;
-                      _selectedSeconds = tempDuration.inSeconds % 60;
+                      _pickerHours = tempDuration.inHours;
+                      _pickerMinutes = tempDuration.inMinutes % 60;
+                      _pickerSeconds = tempDuration.inSeconds % 60;
                     });
+                    timerProvider.setDuration(
+                      tempDuration.inHours,
+                      tempDuration.inMinutes % 60,
+                      tempDuration.inSeconds % 60,
+                    );
                     Navigator.of(context).pop();
                   },
                   child: const Text('Set Timer'),
@@ -131,47 +103,48 @@ class _FocusScreenState extends State<FocusScreen> {
   }
 
   String _formatTime(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    
+    if (h > 0) {
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final double progress = totalSeconds != null && totalSeconds! > 0
-        ? 1 - (secondsLeft / totalSeconds!)
-        : 0;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Text(
-                'Focus Session',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Current Focus Session Goal with dropdown
-              Consumer<TaskProvider>(
-                builder: (context, taskProvider, _) {
-                  final tasks = taskProvider.incompleteTasks;
-                  return Container(
+    return Consumer<TimerProvider>(
+      builder: (context, timer, _) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Text(
+                    'Focus Session',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Task Selector
+                  _buildTaskSelector(context, timer),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Timer Display
+                  Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(8),
@@ -184,291 +157,247 @@ class _FocusScreenState extends State<FocusScreen> {
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Current Focus Session Goal',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(height: 4),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(6),
-                          onTap: () async {
-                            final Task? picked =
-                                await showModalBottomSheet<Task>(
-                                  context: context,
-                                  builder: (context) {
-                                    return SafeArea(
-                                      child: ListView(
-                                        shrinkWrap: true,
-                                        children: tasks
-                                            .map(
-                                              (task) => ListTile(
-                                                title: Text(task.title),
-                                                selected: _selectedTask == task,
-                                                onTap: () => Navigator.of(
-                                                  context,
-                                                ).pop(task),
-                                              ),
-                                            )
-                                            .toList(),
-                                      ),
-                                    );
-                                  },
-                                );
-                            if (picked != null) {
-                              setState(() {
-                                _selectedTask = picked;
-                              });
-                            }
-                          },
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _selectedTask?.title ?? 'No task selected',
-                                style: Theme.of(context).textTheme.bodyLarge
-                                    ?.copyWith(
-                                      color: AppColors.textPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.arrow_drop_down,
-                                color: Colors.grey,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    child: timer.isSessionActive
+                        ? _buildActiveTimer(context, timer)
+                        : _buildSetupTimer(context, timer),
+                  ),
+                  
+                  const SizedBox(height: 18),
+                  
+                  // Interruptions (Placeholder for now)
+                  Text(
+                    'Interruptions logged',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              // Timer Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 8,
-                      spreadRadius: 0.5,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: !timerStarted
-                    ? Column(
-                        children: [
-                          Text(
-                            'Set Timer',
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                ),
-                          ),
-                          const SizedBox(height: 12),
-                          GestureDetector(
-                            onTap: _showTimerPicker,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                                horizontal: 32,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: AppColors.primary,
-                                  width: 2,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                                color: AppColors.background,
-                              ),
-                              child: Text(
-                                '${_selectedHours.toString().padLeft(2, '0')}:${_selectedMinutes.toString().padLeft(2, '0')}:${_selectedSeconds.toString().padLeft(2, '0')}',
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 32,
-                                    ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.textOnPrimary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onPressed: _startTimer,
-                            child: const Text('Start'),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          Text(
-                            _formatTime(secondsLeft),
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 28,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            totalSeconds != null
-                                ? 'of ${(totalSeconds! ~/ 60)} mins'
-                                : '',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 13,
-                                ),
-                          ),
-                          const SizedBox(height: 12),
-                          // Progress bar
-                          LinearProgressIndicator(
-                            value: totalSeconds != null && totalSeconds! > 0
-                                ? 1 - (secondsLeft / totalSeconds!)
-                                : 0,
-                            backgroundColor: AppColors.divider,
-                            color: AppColors.primary,
-                            minHeight: 10,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          const SizedBox(height: 18),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Expanded(
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.secondary,
-                                    foregroundColor: AppColors.textPrimary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  onPressed: _pauseOrResume,
-                                  child: Text(isRunning ? 'Pause' : 'Resume'),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.textOnPrimary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  onPressed: _endSession,
-                                  child: const Text('End Session'),
-                                ),
-                              ),
-                            ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.divider),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x22000000),
+                            blurRadius: 8,
+                            spreadRadius: 0.5,
+                            offset: Offset(0, 3),
                           ),
                         ],
                       ),
+                      child: Center(
+                        child: Text(
+                          'No interruptions logged yet.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 18),
-              // Interruptions logged
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskSelector(BuildContext context, TimerProvider timer) {
+    return Consumer<TaskProvider>(
+      builder: (context, taskProvider, _) {
+        final tasks = taskProvider.incompleteTasks;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 8,
+                spreadRadius: 0.5,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                'Interruptions logged',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
+                'Current Focus Session Goal',
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
-              const SizedBox(height: 8),
-              // Always show the white box, even if empty
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.divider),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x22000000),
-                        blurRadius: 8,
-                        spreadRadius: 0.5,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      'No interruptions logged yet.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
+              const SizedBox(height: 4),
+              InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: timer.isSessionActive
+                    ? null // Disable changing task while running
+                    : () async {
+                        final Task? picked = await showModalBottomSheet<Task>(
+                          context: context,
+                          builder: (context) {
+                            return SafeArea(
+                              child: ListView(
+                                shrinkWrap: true,
+                                children: tasks.map((task) => ListTile(
+                                  title: Text(task.title),
+                                  selected: timer.selectedTask?.id == task.id,
+                                  onTap: () => Navigator.of(context).pop(task),
+                                )).toList(),
+                              ),
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          timer.selectTask(picked);
+                        }
+                      },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      timer.selectedTask?.title ?? 'No task selected',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: timer.isSessionActive 
+                            ? AppColors.textSecondary 
+                            : AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    if (!timer.isSessionActive)
+                      const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
-}
 
-class _InterruptionTile extends StatelessWidget {
-  final String title;
-  final String timeAgo;
-
-  const _InterruptionTile({required this.title, required this.timeAgo});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
+  Widget _buildSetupTimer(BuildContext context, TimerProvider timer) {
+    return Column(
+      children: [
+        Text(
+          'Set Timer',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: _showTimerPicker,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.primary, width: 2),
+              borderRadius: BorderRadius.circular(12),
+              color: AppColors.background,
+            ),
             child: Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: AppColors.textPrimary),
-              overflow: TextOverflow.ellipsis,
+              _formatTime(timer.totalSeconds),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 32,
+              ),
             ),
           ),
-          Text(
-            timeAgo,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 13,
+        ),
+        const SizedBox(height: 18),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.textOnPrimary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
-        ],
-      ),
+          onPressed: timer.totalSeconds > 0 ? timer.startTimer : null,
+          child: const Text('Start Focus'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveTimer(BuildContext context, TimerProvider timer) {
+    return Column(
+      children: [
+        Text(
+          _formatTime(timer.secondsLeft),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 28,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'of ${_formatTime(timer.totalSeconds)}',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Progress bar
+        LinearProgressIndicator(
+          value: timer.progress,
+          backgroundColor: AppColors.divider,
+          color: AppColors.primary,
+          minHeight: 10,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        
+        const SizedBox(height: 18),
+        
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: AppColors.textPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: timer.isRunning ? timer.pauseTimer : timer.resumeTimer,
+                child: Text(timer.isRunning ? 'Pause' : 'Resume'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade100,
+                  foregroundColor: Colors.red.shade900,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: timer.stopSession,
+                child: const Text('End Session'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
