@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'dart:math';
 import '../models/task.dart';
 import '../models/session.dart';
 
@@ -16,7 +17,7 @@ class DatabaseService {
   Database? _database;
 
   static const String _tableName = 'tasks';
-  static const int _dbVersion = 2;
+  static const int _dbVersion = 3;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -51,13 +52,20 @@ class DatabaseService {
         updatedAt TEXT NOT NULL
       )
     ''');
-    // If creating fresh (version 2), also create sessions table
+    // If creating fresh (version 3), also create sessions table with all columns
     await _createSessionsTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createSessionsTable(db);
+    }
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE sessions ADD COLUMN interruptionCount INTEGER DEFAULT 0');
+      } catch (e) {
+        print('Error adding column: $e');
+      }
     }
   }
 
@@ -69,6 +77,7 @@ class DatabaseService {
         startTime TEXT NOT NULL,
         duration INTEGER NOT NULL,
         isCompleted INTEGER DEFAULT 0,
+        interruptionCount INTEGER DEFAULT 0,
         FOREIGN KEY(taskId) REFERENCES tasks(id)
       )
     ''');
@@ -203,6 +212,45 @@ class DatabaseService {
     final db = await database;
     final maps = await db.query('sessions', orderBy: 'startTime DESC');
     return maps.map((map) => Session.fromMap(map)).toList();
+  }
+
+  Future<List<Session>> getSessionsForRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final maps = await db.query(
+      'sessions',
+      where: 'startTime >= ? AND startTime <= ?',
+      whereArgs: [start.toIso8601String(), end.toIso8601String()],
+      orderBy: 'startTime ASC',
+    );
+    return maps.map((map) => Session.fromMap(map)).toList();
+  }
+
+  Future<void> seedDummyData() async {
+    final db = await database;
+    final random = Random();
+    final now = DateTime.now();
+    
+    // Generate sessions for the last 7 days
+    for (int i = 0; i < 7; i++) {
+      final day = now.subtract(Duration(days: i));
+      // Random number of sessions per day (0 to 4)
+      final sessionCount = random.nextInt(5);
+      
+      for (int j = 0; j < sessionCount; j++) {
+        final duration = (random.nextInt(50) + 10) * 60; // 10 to 60 mins in seconds
+        final startTime = day.subtract(Duration(hours: random.nextInt(12) + 8)); // Random time between 8am and 8pm
+        
+        final session = Session(
+          startTime: startTime,
+          duration: duration,
+          isCompleted: true,
+          interruptionCount: random.nextInt(3),
+        );
+        
+        await insertSession(session);
+      }
+    }
+    print('Seeded dummy data.');
   }
 
   /// Close the database (call on app dispose if needed).

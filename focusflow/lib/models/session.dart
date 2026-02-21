@@ -4,6 +4,7 @@ class Session {
   final DateTime startTime;
   final int duration; // in seconds
   final bool isCompleted;
+  final int interruptionCount;
 
   Session({
     this.id,
@@ -11,6 +12,7 @@ class Session {
     required this.startTime,
     required this.duration,
     this.isCompleted = false,
+    this.interruptionCount = 0,
   });
 
   Map<String, dynamic> toMap() {
@@ -20,6 +22,7 @@ class Session {
       'startTime': startTime.toIso8601String(),
       'duration': duration,
       'isCompleted': isCompleted ? 1 : 0,
+      'interruptionCount': interruptionCount, // No check needed, defaults to 0
     };
   }
 
@@ -30,6 +33,7 @@ class Session {
       startTime: DateTime.parse(map['startTime'] as String),
       duration: map['duration'] as int,
       isCompleted: (map['isCompleted'] as int) == 1,
+      interruptionCount: map['interruptionCount'] as int? ?? 0,
     );
   }
 }
