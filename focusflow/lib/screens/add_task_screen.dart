@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/task.dart';
@@ -73,12 +74,18 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
     if (task != null) {
       _priority = task.priority;
-      _dueDate = task.dueDate;
+      // Ensure we're working with local time
       if (task.dueDate != null) {
+        final localDueDate = task.dueDate!.toLocal();
+        _dueDate = localDueDate;
         _dueTime = TimeOfDay(
-          hour: task.dueDate!.hour,
-          minute: task.dueDate!.minute,
+          hour: localDueDate.hour,
+          minute: localDueDate.minute,
         );
+        debugPrint('Loaded task due date: ${task.dueDate} -> Local: $localDueDate');
+      } else {
+        _dueDate = null;
+        _dueTime = null;
       }
       _category = task.category;
     }
@@ -129,13 +136,32 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     if (_dueDate != null) {
       // Use the user's time if they picked one, otherwise default to end of day
       final time = _dueTime ?? const TimeOfDay(hour: 23, minute: 59);
+      
+      // Create DateTime in local timezone with the selected date and time
+      // This ensures the time is preserved correctly
       combinedDue = DateTime(
         _dueDate!.year,
         _dueDate!.month,
         _dueDate!.day,
         time.hour,
         time.minute,
+        0, // seconds
+        0, // milliseconds
       );
+      
+      // Debug: Log the created DateTime to verify it's correct
+      debugPrint('📅 Created due date:');
+      debugPrint('   Selected date: $_dueDate');
+      debugPrint('   Selected time: $time');
+      debugPrint('   Combined DateTime: $combinedDue');
+      debugPrint('   Is UTC: ${combinedDue.isUtc}');
+      debugPrint('   Local time: ${combinedDue.toLocal()}');
+      debugPrint('   Will be saved as UTC: ${combinedDue.toUtc().toIso8601String()}');
+      
+      // Debug: Log the created DateTime to verify it's correct
+      debugPrint('Created due date: $combinedDue');
+      debugPrint('Due date ISO8601: ${combinedDue.toIso8601String()}');
+      debugPrint('Due date local: ${combinedDue.toLocal()}');
     }
 
     // Parse the duration, or use 25 minutes as default

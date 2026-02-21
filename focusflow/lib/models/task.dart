@@ -36,12 +36,22 @@ class Task {
   // --------------- SQLite helpers ---------------
 
   Map<String, dynamic> toMap() {
+    // Convert DateTime to ISO8601 string
+    // For dueDate, ensure we preserve the local time by converting to UTC first
+    // then back to local when reading (handled in fromMap)
+    String? formatDate(DateTime? date) {
+      if (date == null) return null;
+      // Convert to UTC for storage to ensure consistency
+      // When reading back, we'll convert to local
+      return date.toUtc().toIso8601String();
+    }
+    
     return {
       if (id != null) 'id': id,
       'title': title,
       'description': description,
       'priority': priority.index, // 0=low, 1=medium, 2=high
-      'dueDate': dueDate?.toIso8601String(),
+      'dueDate': formatDate(dueDate),
       'durationMinutes': durationMinutes,
       'category': category,
       'isCompleted': isCompleted ? 1 : 0,
@@ -51,14 +61,23 @@ class Task {
   }
 
   factory Task.fromMap(Map<String, dynamic> map) {
+    DateTime? parseDueDate(String? dateString) {
+      if (dateString == null) return null;
+      
+      final parsed = DateTime.tryParse(dateString);
+      if (parsed == null) return null;
+      
+      // Dates are stored in UTC, so convert to local time when reading
+      // This ensures the time displayed matches what the user selected
+      return parsed.isUtc ? parsed.toLocal() : parsed;
+    }
+    
     return Task(
       id: map['id'] as int?,
       title: map['title'] as String,
       description: map['description'] as String? ?? '',
       priority: Priority.values[map['priority'] as int? ?? 1],
-      dueDate: map['dueDate'] != null
-          ? DateTime.tryParse(map['dueDate'] as String)
-          : null,
+      dueDate: parseDueDate(map['dueDate'] as String?),
       durationMinutes: map['durationMinutes'] as int? ?? 25,
       category: map['category'] as String? ?? 'General',
       isCompleted: (map['isCompleted'] as int? ?? 0) == 1,

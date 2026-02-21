@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/timer_provider.dart';
 import 'providers/insights_provider.dart';
+import 'providers/scheduling_provider.dart';
+import 'services/notification_service.dart';
 import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
@@ -15,6 +17,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // TODO: Add Firebase configuration options once generated
   // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  // Initialize notification service
+  await NotificationService().initialize();
+  
   runApp(const FocusFlowApp());
 }
 
@@ -26,9 +32,14 @@ class FocusFlowApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => TaskProvider()),
-        ChangeNotifierProvider(create: (_) => TimerProvider()),
+        ChangeNotifierProvider(create: (_) {
+          final timerProvider = TimerProvider();
+          // Set timer provider in notification service for context-aware notifications
+          NotificationService().setTimerProvider(timerProvider);
+          return timerProvider;
+        }),
         ChangeNotifierProvider(create: (_) => InsightsProvider()),
-        // TODO: Add more providers here as features grow
+        ChangeNotifierProvider(create: (_) => SchedulingProvider()),
       ],
       child: MaterialApp(
         title: 'FocusFlow',
