@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/task.dart';
+import '../models/session.dart';
 
 /// Local SQLite database service for task CRUD.
 ///
@@ -15,7 +16,7 @@ class DatabaseService {
   Database? _database;
 
   static const String _tableName = 'tasks';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 2;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -50,10 +51,27 @@ class DatabaseService {
         updatedAt TEXT NOT NULL
       )
     ''');
+    // If creating fresh (version 2), also create sessions table
+    await _createSessionsTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Handle future schema migrations here
+    if (oldVersion < 2) {
+      await _createSessionsTable(db);
+    }
+  }
+
+  Future<void> _createSessionsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        taskId INTEGER,
+        startTime TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        isCompleted INTEGER DEFAULT 0,
+        FOREIGN KEY(taskId) REFERENCES tasks(id)
+      )
+    ''');
   }
 
   // --------------- CREATE ---------------
@@ -168,6 +186,23 @@ class DatabaseService {
     final result =
         await db.rawQuery('SELECT COUNT(*) as count FROM $_tableName $where');
     return result.first['count'] as int;
+  }
+
+  // --------------- SESSIONS ---------------
+
+  Future<int> insertSession(Session session) async {
+    final db = await database;
+    return await db.insert(
+      'sessions',
+      session.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Session>> getSessions() async {
+    final db = await database;
+    final maps = await db.query('sessions', orderBy: 'startTime DESC');
+    return maps.map((map) => Session.fromMap(map)).toList();
   }
 
   /// Close the database (call on app dispose if needed).
