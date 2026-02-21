@@ -253,6 +253,39 @@ class DatabaseService {
     print('Seeded dummy data.');
   }
 
+  Future<void> seedDummyTasks() async {
+    final random = Random();
+    final categories = ['Work', 'Personal', 'Health', 'Errands', 'Coursework'];
+    final titles = [
+      'Finish Project Report',
+      'Grocery Shopping',
+      'Workout (Leg Day)',
+      'Call Mom',
+      'Review Pull Requests',
+      'Update Resume',
+      'Clean Apartment',
+      'Read Book',
+    ];
+
+    for (int i = 0; i < 5; i++) {
+      final title = titles[random.nextInt(titles.length)];
+      final category = categories[random.nextInt(categories.length)];
+      final priority = Priority.values[random.nextInt(Priority.values.length)];
+      
+      final task = Task(
+        title: '$title ${random.nextInt(100)}',
+        description: 'Generated dummy task',
+        priority: priority,
+        durationMinutes: (random.nextInt(4) + 1) * 15, // 15, 30, 45, 60
+        category: category,
+        dueDate: DateTime.now().add(Duration(days: random.nextInt(7))),
+      );
+      
+      await insertTask(task);
+    }
+    print('Seeded dummy tasks.');
+  }
+
   /// Close the database (call on app dispose if needed).
   Future<void> close() async {
     final db = await database;

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/database_service.dart';
+import '../services/auth_service.dart';
+import '../screens/auth/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -18,11 +20,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Focus mode selection
   int focusMode = 0; // 0: Deep, 1: Balanced, 2: Light
+  
+  // Auth state
+  final AuthService _auth = AuthService();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isLoggedIn = _auth.isLoggedIn;
+    final userEmail = _auth.currentUserEmail ?? 'Guest';
+
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Column(
@@ -47,29 +56,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // TODO: Do not hardcode the user's name
                   Text(
-                    'John Doe',
+                    isLoggedIn ? 'Welcome Back' : 'Welcome, Guest',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  // TODO: Do not hardcode the user's email
                   const SizedBox(height: 4),
-                  Text('john.doe@email.com', style: theme.textTheme.bodyMedium),
+                  Text(
+                    isLoggedIn ? userEmail : 'Sign in to sync your data',
+                    style: theme.textTheme.bodyMedium,
+                  ),
                   const SizedBox(height: 12),
-                  // ElevatedButton(
-                  //   style: ElevatedButton.styleFrom(
-                  //     backgroundColor: AppColors.secondary,
-                  //     foregroundColor: AppColors.textPrimary,
-                  //     elevation: 0,
-                  //     shape: RoundedRectangleBorder(
-                  //       borderRadius: BorderRadius.circular(4),
-                  //     ),
-                  //   ),
-                  //   onPressed: () {},
-                  //   child: const Text('Edit profile'),
-                  // ),
+                  if (isLoggedIn)
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        side: const BorderSide(color: AppColors.divider),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      onPressed: () {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           const SnackBar(content: Text('Edit Profile not implemented yet')),
+                         );
+                      },
+                      child: const Text('Edit profile'),
+                    )
+                  else
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.textOnPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      onPressed: _openLogin,
+                      child: const Text('Sign In / Sign Up'),
+                    ),
                 ],
               ),
             ),
@@ -183,39 +209,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Sign Out Button
-            ElevatedButton(
+            // Seed Tasks (Developer)
+            ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.surface,
+                backgroundColor: AppColors.secondary,
                 foregroundColor: AppColors.textPrimary,
                 elevation: 0,
-                side: BorderSide(color: AppColors.divider),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              onPressed: () {},
-              child: const Text('Sign Out'),
+              onPressed: () async {
+                await DatabaseService().seedDummyTasks();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Seeded 5 dummy tasks')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.list_alt),
+              label: const Text('Seed Dummy Tasks'),
             ),
             const SizedBox(height: 12),
 
-            // Delete Account Button
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: AppColors.textOnPrimary,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
+            // Sign Out Button (Only if logged in)
+            if (isLoggedIn) ...[
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.surface,
+                  foregroundColor: AppColors.textPrimary,
+                  elevation: 0,
+                  side: const BorderSide(color: AppColors.divider),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
+                onPressed: _handleSignOut,
+                child: const Text('Sign Out'),
               ),
-              onPressed: () {},
-              child: const Text('Delete Account'),
-            ),
+              const SizedBox(height: 12),
+              
+              // Delete Account Button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: AppColors.textOnPrimary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                onPressed: () {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                     const SnackBar(content: Text('Delete Account not implemented yet')),
+                   );
+                },
+                child: const Text('Delete Account'),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+  
+  Future<void> _openLogin() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+    // If login was successful (returned true), refresh state
+    if (result == true) {
+      setState(() {});
+    }
+  }
+  
+  Future<void> _handleSignOut() async {
+    await _auth.signOut();
+    setState(() {});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Signed out')),
+      );
+    }
   }
 
   Widget _buildCheckboxRow(
