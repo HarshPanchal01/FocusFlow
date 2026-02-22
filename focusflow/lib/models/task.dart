@@ -8,7 +8,7 @@
 enum Priority { low, medium, high }
 
 class Task {
-  final int? id; // SQLite auto-increment; null until inserted
+  final String? id; // SQLite int OR Firestore doc ID
   final String title;
   final String description;
   final Priority priority;
@@ -52,7 +52,7 @@ class Task {
 
   factory Task.fromMap(Map<String, dynamic> map) {
     return Task(
-      id: map['id'] as int?,
+      id: map['id']?.toString(),
       title: map['title'] as String,
       description: map['description'] as String? ?? '',
       priority: Priority.values[map['priority'] as int? ?? 1],
@@ -74,19 +74,38 @@ class Task {
   // --------------- Firestore stubs (Issue #5) ---------------
 
   Map<String, dynamic> toFirestore() {
-    // TODO: implement when Firebase sync is added
-    return toMap()..remove('id'); // Firestore uses doc IDs, not int IDs
+    return {
+      'title': title,
+      'description': description,
+      'priority': priority.index,
+      'dueDate': dueDate,
+      'durationMinutes': durationMinutes,
+      'category': category,
+      'isCompleted': isCompleted,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
   }
 
   factory Task.fromFirestore(Map<String, dynamic> map, String docId) {
-    // TODO: map Firestore doc to Task
-    return Task.fromMap(map);
+    return Task(
+      id: docId,
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      priority: Priority.values[map['priority'] ?? 1],
+      dueDate: map['dueDate']?.toDate(),
+      durationMinutes: map['durationMinutes'] ?? 25,
+      category: map['category'] ?? 'General',
+      isCompleted: map['isCompleted'] ?? false,
+      createdAt: map['createdAt']?.toDate() ?? DateTime.now(),
+      updatedAt: map['updatedAt']?.toDate() ?? DateTime.now(),
+    );
   }
 
   // --------------- Copy helper for updates ---------------
 
   Task copyWith({
-    int? id,
+    String? id,
     String? title,
     String? description,
     Priority? priority,

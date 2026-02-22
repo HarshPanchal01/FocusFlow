@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
-import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 // =============================================================
 // TASK PROVIDER (State Management)
 // =============================================================
@@ -23,7 +23,7 @@ import '../services/database_service.dart';
 /// Holds and manages all the tasks. Screens ask this for tasks
 /// instead of talking to the database directly.
 class TaskProvider extends ChangeNotifier {
-  final DatabaseService _dbService = DatabaseService();
+  final FirestoreService _dbService = FirestoreService();
 
   List<Task> _tasks = [];
   bool _isLoading = false;
@@ -56,7 +56,7 @@ class TaskProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _tasks = await _dbService.getTasks(orderBy: 'priority DESC, dueDate ASC');
+      _tasks = await _dbService.getTasks();
     } catch (e) {
       debugPrint('Error loading tasks: $e');
     } finally {
@@ -68,14 +68,11 @@ class TaskProvider extends ChangeNotifier {
   // Add a new task and save it to the database
   Future<void> addTask(Task task) async {
     try {
-      final id = await _dbService.insertTask(task);
-      // Get the actual task back from the database so it has the right ID
-      final inserted = await _dbService.getTaskById(id);
-      if (inserted != null) {
-        _tasks.add(inserted);
-        _sortTasks();
-        notifyListeners();
-      }
+      final id = await _dbService.addTask(task);
+      final newTask = task.copyWith(id: id);
+      _tasks.add(newTask);
+      _sortTasks();
+      notifyListeners();
     } catch (e) {
       debugPrint('Error adding task: $e');
     }
@@ -85,10 +82,10 @@ class TaskProvider extends ChangeNotifier {
   Future<void> updateTask(Task task) async {
     try {
       await _dbService.updateTask(task);
+
       final index = _tasks.indexWhere((t) => t.id == task.id);
       if (index != -1) {
         _tasks[index] = task;
-        _sortTasks();
         notifyListeners();
       }
     } catch (e) {
@@ -103,7 +100,7 @@ class TaskProvider extends ChangeNotifier {
   }
 
   // Remove a task from the database
-  Future<void> deleteTask(int id) async {
+  Future<void> deleteTask(String id) async {
     try {
       await _dbService.deleteTask(id);
       _tasks.removeWhere((t) => t.id == id);

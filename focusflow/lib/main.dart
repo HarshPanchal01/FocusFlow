@@ -10,9 +10,12 @@ import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
+  // Ensure Flutter bindings are initialized before Firebase setup
   WidgetsFlutterBinding.ensureInitialized();
-  // TODO: Add Firebase configuration options once generated
-  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Firebase using google-services.json configuration
+  await Firebase.initializeApp();
+
   runApp(const FocusFlowApp());
 }
 
@@ -44,6 +47,16 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Load tasks once when the app starts
+    Future.microtask(() {
+      context.read<TaskProvider>().loadTasks();
+    });
+  }
 
   final List<Widget> _screens = [
     const TodayScreen(),
