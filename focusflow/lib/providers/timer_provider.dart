@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../models/session.dart';
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
 
 class TimerProvider extends ChangeNotifier {
   final DatabaseService _dbService = DatabaseService();
@@ -87,7 +88,12 @@ class TimerProvider extends ChangeNotifier {
   void _completeSession() {
     _saveSession(completed: true);
     _resetState();
-    // TODO: Trigger notification or sound
+    
+    // Show completion notification immediately
+    // Don't await to avoid blocking, but ensure it's called
+    NotificationService().scheduleFocusSessionComplete(DateTime.now()).catchError((e) {
+      debugPrint('Error showing completion notification: $e');
+    });
   }
 
   // Save session to DB

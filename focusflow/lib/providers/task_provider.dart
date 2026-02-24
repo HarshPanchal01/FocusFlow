@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
 // =============================================================
 // TASK PROVIDER (State Management)
 // =============================================================
@@ -57,6 +58,17 @@ class TaskProvider extends ChangeNotifier {
 
     try {
       _tasks = await _dbService.getTasks(orderBy: 'priority DESC, dueDate ASC');
+      
+      // Schedule notifications for all tasks with due dates when loading
+      // This ensures notifications are scheduled even if app was closed when task was created
+      for (final task in _tasks) {
+        if (task.dueDate != null && !task.isCompleted) {
+          // Schedule notification in background (don't await to avoid blocking)
+          NotificationService().scheduleTaskReminder(task).catchError((e) {
+            debugPrint('Error scheduling reminder for task ${task.id}: $e');
+          });
+        }
+      }
     } catch (e) {
       debugPrint('Error loading tasks: $e');
     } finally {
@@ -75,6 +87,17 @@ class TaskProvider extends ChangeNotifier {
         _tasks.add(inserted);
         _sortTasks();
         notifyListeners();
+        
+        // Schedule notification if task has due date
+        if (inserted.dueDate != null) {
+          debugPrint('📋 Task created:');
+          debugPrint('   Title: ${inserted.title}');
+          debugPrint('   Due date from DB: ${inserted.dueDate}');
+          debugPrint('   Due date local: ${inserted.dueDate!.toLocal()}');
+          debugPrint('   Due date UTC: ${inserted.dueDate!.toUtc()}');
+          debugPrint('   Hour: ${inserted.dueDate!.hour}, Minute: ${inserted.dueDate!.minute}');
+          await NotificationService().scheduleTaskReminder(inserted);
+        }
       }
     } catch (e) {
       debugPrint('Error adding task: $e');
@@ -90,6 +113,15 @@ class TaskProvider extends ChangeNotifier {
         _tasks[index] = task;
         _sortTasks();
         notifyListeners();
+        
+        // Reschedule notification if due date changed
+        if (task.dueDate != null) {
+          // Cancel old notification and schedule new one
+          if (task.id != null) {
+            await NotificationService().cancelNotification(task.id!);
+          }
+          await NotificationService().scheduleTaskReminder(task);
+        }
       }
     } catch (e) {
       debugPrint('Error updating task: $e');
