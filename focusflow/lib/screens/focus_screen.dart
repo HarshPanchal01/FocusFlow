@@ -13,7 +13,7 @@ class FocusScreen extends StatefulWidget {
   State<FocusScreen> createState() => _FocusScreenState();
 }
 
-class _FocusScreenState extends State<FocusScreen> {
+class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   // Local state for the picker, to avoid rebuilding the provider on every scroll tick
   int _pickerHours = 0;
   int _pickerMinutes = 25;
@@ -22,6 +22,9 @@ class _FocusScreenState extends State<FocusScreen> {
   @override
   void initState() {
     super.initState();
+    // Listen for app lifecycle changes (to auto-log interruptions)
+    WidgetsBinding.instance.addObserver(this);
+
     // Initialize picker values from provider if needed, or default
     final timerProvider = context.read<TimerProvider>();
     if (timerProvider.totalSeconds > 0) {
@@ -32,6 +35,23 @@ class _FocusScreenState extends State<FocusScreen> {
     } else {
       // Default startup state
       timerProvider.setDuration(0, 25, 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Auto-detect when user leaves the app during a focus session
+  // This fires when the user switches to another app, goes to home screen, etc.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final timerProvider = context.read<TimerProvider>();
+    if (timerProvider.isSessionActive && state == AppLifecycleState.paused) {
+      // User left the app while a session was running — log it automatically
+      timerProvider.logInterruption('Left App');
     }
   }
 
@@ -102,6 +122,49 @@ class _FocusScreenState extends State<FocusScreen> {
     );
   }
 
+  void _showInterruptionPicker(TimerProvider timer) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'What interrupted you?',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.phone),
+                title: const Text('Phone Call'),
+                onTap: () { timer.logInterruption('Phone Call'); Navigator.pop(context); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.people),
+                title: const Text('Someone Talked to Me'),
+                onTap: () { timer.logInterruption('Someone Talked to Me'); Navigator.pop(context); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications),
+                title: const Text('Notification / Social Media'),
+                onTap: () { timer.logInterruption('Notification / Social Media'); Navigator.pop(context); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.more_horiz),
+                title: const Text('Other'),
+                onTap: () { timer.logInterruption('Other'); Navigator.pop(context); },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _formatTime(int seconds) {
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
@@ -164,13 +227,30 @@ class _FocusScreenState extends State<FocusScreen> {
                   
                   const SizedBox(height: 18),
                   
-                  // Interruptions (Placeholder for now)
-                  Text(
-                    'Interruptions logged',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  // Interruptions section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Interruptions${timer.interruptionCount > 0 ? ' (${timer.interruptionCount})' : ''}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      // Manual log button — only shown while a session is active
+                      if (timer.isSessionActive)
+                        TextButton.icon(
+                          onPressed: () => _showInterruptionPicker(timer),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Log'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(0, 36),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Expanded(
@@ -189,14 +269,45 @@ class _FocusScreenState extends State<FocusScreen> {
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          'No interruptions logged yet.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
+                      child: timer.interruptions.isEmpty
+                          ? Center(
+                              child: Text(
+                                timer.isSessionActive
+                                    ? 'No interruptions yet — stay focused!'
+                                    : 'No interruptions logged yet.',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: timer.interruptions.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final interruption = timer.interruptions[index];
+                                final isAuto = interruption['type'] == 'Left App';
+                                return ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(
+                                    isAuto ? Icons.phone_android : Icons.front_hand,
+                                    size: 20,
+                                    color: isAuto ? Colors.orange : AppColors.primary,
+                                  ),
+                                  title: Text(
+                                    interruption['type'] ?? 'Unknown',
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                  trailing: Text(
+                                    interruption['time'] ?? '',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                     ),
                   ),
                 ],
@@ -258,6 +369,12 @@ class _FocusScreenState extends State<FocusScreen> {
                         );
                         if (picked != null) {
                           timer.selectTask(picked);
+                          // Sync the local picker values to match the task's duration
+                          setState(() {
+                            _pickerHours = picked.durationMinutes ~/ 60;
+                            _pickerMinutes = picked.durationMinutes % 60;
+                            _pickerSeconds = 0;
+                          });
                         }
                       },
                 child: Row(

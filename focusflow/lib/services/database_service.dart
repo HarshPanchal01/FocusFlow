@@ -238,7 +238,8 @@ class DatabaseService {
       
       for (int j = 0; j < sessionCount; j++) {
         final duration = (random.nextInt(50) + 10) * 60; // 10 to 60 mins in seconds
-        final startTime = day.subtract(Duration(hours: random.nextInt(12) + 8)); // Random time between 8am and 8pm
+        final startTime = DateTime(day.year, day.month, day.day,
+          random.nextInt(12) + 8, random.nextInt(60)); // Random time between 8am and 8pm
         
         final session = Session(
           startTime: startTime,
