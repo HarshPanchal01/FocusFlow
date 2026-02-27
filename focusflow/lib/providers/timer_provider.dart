@@ -18,6 +18,11 @@ class TimerProvider extends ChangeNotifier {
   // Selected task for the session
   Task? _selectedTask;
 
+  // Interruption tracking
+  List<Map<String, String>> _interruptions = [];  // List of {type, time} maps
+  int get interruptionCount => _interruptions.length;
+  List<Map<String, String>> get interruptions => _interruptions;
+
   // Getters
   int get secondsLeft => _secondsLeft;
   int get totalSeconds => _totalSeconds;
@@ -32,9 +37,18 @@ class TimerProvider extends ChangeNotifier {
   }
 
   // Set the task to focus on
+  // Also auto-sets the timer to match the task's estimated duration
   void selectTask(Task? task) {
     if (_isSessionActive) return; // Can't change task while running
     _selectedTask = task;
+
+    // Auto-set timer to the task's duration so the user doesn't have to
+    if (task != null && task.durationMinutes > 0) {
+      final hours = task.durationMinutes ~/ 60;
+      final minutes = task.durationMinutes % 60;
+      setDuration(hours, minutes, 0);
+    }
+
     notifyListeners();
   }
 
@@ -84,6 +98,19 @@ class TimerProvider extends ChangeNotifier {
     _resetState();
   }
 
+  // Log an interruption during a focus session (manual or automatic)
+  // type can be: "Manual", "Left App", "Phone Call", etc.
+  void logInterruption(String type) {
+    if (!_isSessionActive) return;
+
+    final now = DateTime.now();
+    final timeLabel =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    _interruptions.add({'type': type, 'time': timeLabel});
+    notifyListeners();
+  }
+
   // Timer finished naturally
   void _completeSession() {
     _saveSession(completed: true);
@@ -103,6 +130,7 @@ class TimerProvider extends ChangeNotifier {
       startTime: DateTime.now().subtract(Duration(seconds: _totalSeconds - _secondsLeft)),
       duration: _totalSeconds - _secondsLeft,
       isCompleted: completed,
+      interruptionCount: _interruptions.length,
     );
     
     try {
@@ -117,6 +145,7 @@ class TimerProvider extends ChangeNotifier {
     _timer?.cancel();
     _isRunning = false;
     _isSessionActive = false;
+    _interruptions = [];  // Clear interruptions for next session
     _secondsLeft = _totalSeconds; // Reset to initial duration or 0?
     // Let's reset to initial duration so they can go again easily, 
     // or we could reset to 25 mins default.

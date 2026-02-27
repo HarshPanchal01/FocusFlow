@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
+import '../services/database_service.dart';
 import 'add_task_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -256,10 +258,52 @@ class _TodayScreenState extends State<TodayScreen> {
 // ══════════════════════════════════════════════════════════════
 
 /// Shows the daily focus time banner at the top.
-class _DailyFocusBanner extends StatelessWidget {
+/// Reads today's completed sessions from the database and shows real progress.
+class _DailyFocusBanner extends StatefulWidget {
+  @override
+  State<_DailyFocusBanner> createState() => _DailyFocusBannerState();
+}
+
+class _DailyFocusBannerState extends State<_DailyFocusBanner> {
+  double _todayMinutes = 0;
+  static const double _targetMinutes = 240; // 4 hour daily goal
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTodayFocusTime();
+  }
+
+  // Query SQLite for all sessions that started today and add up their durations
+  Future<void> _loadTodayFocusTime() async {
+    try {
+      final now = DateTime.now();
+      // Start of today (midnight) to end of today (11:59 PM)
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      final sessions = await DatabaseService().getSessionsForRange(startOfDay, endOfDay);
+
+      double totalMinutes = 0;
+      for (final session in sessions) {
+        totalMinutes += session.duration / 60.0; // duration is in seconds
+      }
+
+      if (mounted) {
+        setState(() => _todayMinutes = totalMinutes);
+      }
+    } catch (e) {
+      debugPrint('Error loading focus time: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // TODO: Wire up actual focus time + progress bar from Issue #3
+    final hoursCompleted = (_todayMinutes / 60).toStringAsFixed(1);
+    final targetHours = (_targetMinutes / 60).toStringAsFixed(0);
+    final remaining = ((_targetMinutes - _todayMinutes) / 60).clamp(0, _targetMinutes / 60).toStringAsFixed(1);
+    final progress = (_todayMinutes / _targetMinutes).clamp(0.0, 1.0);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -267,7 +311,7 @@ class _DailyFocusBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x22000000), // Softer shadow
+            color: Color(0x22000000),
             blurRadius: 8,
             spreadRadius: 0.5,
             offset: Offset(0, 3),
@@ -284,18 +328,19 @@ class _DailyFocusBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          // Progress bar showing focus time
+          // Progress bar showing actual focus time vs target
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: 0.0, // TODO: replace with actual ratio
-              minHeight: 10,
-              backgroundColor: Colors.grey.shade300,
+              value: progress,
+              minHeight: 12,
+              backgroundColor: Colors.white30,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Time remaining: 0 hrs  •  Target: 4 hrs',
+            '$hoursCompleted hrs done  •  $remaining hrs remaining  •  Target: $targetHours hrs',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onPrimary,
             ),
