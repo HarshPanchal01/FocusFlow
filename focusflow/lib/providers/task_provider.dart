@@ -1,30 +1,14 @@
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
-import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
-// =============================================================
-// TASK PROVIDER (State Management)
-// =============================================================
-// This is the "middleman" between the UI screens and the database.
-//
-// How it works:
-//   1. Screens call methods here (like addTask, deleteTask, etc.)
-//   2. This provider talks to DatabaseService to save/load data
-//   3. It holds the task list in memory so screens can display it
-//   4. When data changes, it calls notifyListeners() which tells
-//      all screens listening via Consumer<TaskProvider> to rebuild
-//
-// Why not just call the database directly from screens?
-//   - Keeps the UI code clean (screens only handle display logic)
-//   - One place to manage the task list state
-//   - Multiple screens can share the same data without conflicts
-//   - Makes it easy to add Firebase sync later without changing screens
-// =============================================================
 
-/// Holds and manages all the tasks. Screens ask this for tasks
-/// instead of talking to the database directly.
+/// TaskProvider = state manager for all task-related UI.
+///
+/// Screens DO NOT talk to Firestore directly.
+/// They call this provider instead.
 class TaskProvider extends ChangeNotifier {
-  final DatabaseService _dbService = DatabaseService();
+  final FirestoreService _dbService = FirestoreService();
 
   List<Task> _tasks = [];
   bool _isLoading = false;
@@ -32,40 +16,43 @@ class TaskProvider extends ChangeNotifier {
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
 
-  // Quick ways to get tasks filtered the way we need them
+  /// Derived lists for UI
   List<Task> get incompleteTasks =>
       _tasks.where((t) => !t.isCompleted).toList();
+
   List<Task> get completedTasks =>
       _tasks.where((t) => t.isCompleted).toList();
 
-  // Split incomplete tasks into groups by high, medium, or low priority
+  /// Group tasks by priority (used in UI sections)
   Map<Priority, List<Task>> get tasksByPriority {
     final map = <Priority, List<Task>>{
       Priority.high: [],
       Priority.medium: [],
       Priority.low: [],
     };
+
     for (final task in incompleteTasks) {
       map[task.priority]!.add(task);
     }
+
     return map;
   }
 
-  // Get all tasks from the database
+  /// Load all tasks from Firestore
   Future<void> loadTasks() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      _tasks = await _dbService.getTasks(orderBy: 'priority DESC, dueDate ASC');
-      
-      // Schedule notifications for all tasks with due dates when loading
-      // This ensures notifications are scheduled even if app was closed when task was created
+      _tasks = await _dbService.getTasks();
+
+      // Schedule reminders for active tasks
       for (final task in _tasks) {
         if (task.dueDate != null && !task.isCompleted) {
-          // Schedule notification in background (don't await to avoid blocking)
-          NotificationService().scheduleTaskReminder(task).catchError((e) {
-            debugPrint('Error scheduling reminder for task ${task.id}: $e');
+          NotificationService()
+              .scheduleTaskReminder(task)
+              .catchError((e) {
+            debugPrint('Error scheduling reminder for ${task.id}: $e');
           });
         }
       }
@@ -77,49 +64,40 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Add a new task and save it to the database
+  /// Add new task
   Future<void> addTask(Task task) async {
     try {
-      final id = await _dbService.insertTask(task);
-      // Get the actual task back from the database so it has the right ID
-      final inserted = await _dbService.getTaskById(id);
-      if (inserted != null) {
-        _tasks.add(inserted);
-        _sortTasks();
-        notifyListeners();
-        
-        // Schedule notification if task has due date
-        if (inserted.dueDate != null) {
-          debugPrint('📋 Task created:');
-          debugPrint('   Title: ${inserted.title}');
-          debugPrint('   Due date from DB: ${inserted.dueDate}');
-          debugPrint('   Due date local: ${inserted.dueDate!.toLocal()}');
-          debugPrint('   Due date UTC: ${inserted.dueDate!.toUtc()}');
-          debugPrint('   Hour: ${inserted.dueDate!.hour}, Minute: ${inserted.dueDate!.minute}');
-          await NotificationService().scheduleTaskReminder(inserted);
-        }
+      final inserted = await _dbService.insertTask(task);
+
+      _tasks.add(inserted);
+      _sortTasks();
+      notifyListeners();
+
+      // Schedule reminder if due date exists
+      if (inserted.dueDate != null) {
+        await NotificationService().scheduleTaskReminder(inserted);
       }
     } catch (e) {
       debugPrint('Error adding task: $e');
     }
   }
 
-  // Update a task's info in the database
+  /// Update existing task
   Future<void> updateTask(Task task) async {
     try {
       await _dbService.updateTask(task);
+
       final index = _tasks.indexWhere((t) => t.id == task.id);
       if (index != -1) {
         _tasks[index] = task;
         _sortTasks();
         notifyListeners();
-        
-        // Reschedule notification if due date changed
-        if (task.dueDate != null) {
-          // Cancel old notification and schedule new one
-          if (task.id != null) {
-            await NotificationService().cancelNotification(task.id!);
-          }
+
+        // Re-schedule notification
+        if (task.dueDate != null && task.id != null) {
+          await NotificationService()
+              .cancelNotification(task.id.hashCode);
+
           await NotificationService().scheduleTaskReminder(task);
         }
       }
@@ -128,16 +106,19 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Mark a task done or not done
+  /// Toggle complete/incomplete
   Future<void> toggleCompletion(Task task) async {
-    final updated = task.copyWith(isCompleted: !task.isCompleted);
+    final updated = task.copyWith(
+      isCompleted: !task.isCompleted,
+    );
     await updateTask(updated);
   }
 
-  // Remove a task from the database
-  Future<void> deleteTask(int id) async {
+  /// Delete task
+  Future<void> deleteTask(String id) async {
     try {
       await _dbService.deleteTask(id);
+
       _tasks.removeWhere((t) => t.id == id);
       notifyListeners();
     } catch (e) {
@@ -145,30 +126,33 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Clean up all the tasks that are already done
+  /// Remove all completed tasks
   Future<void> clearCompleted() async {
     try {
       await _dbService.deleteCompletedTasks();
+
       _tasks.removeWhere((t) => t.isCompleted);
       notifyListeners();
     } catch (e) {
-      debugPrint('Error clearing completed tasks: $e');
+      debugPrint('Error clearing completed: $e');
     }
   }
 
-  // Put tasks in a sensible order
+  /// Internal sorting logic for UI consistency
   void _sortTasks() {
     _tasks.sort((a, b) {
-      // Show incomplete tasks first, then by priority (high first), then by due date
       if (a.isCompleted != b.isCompleted) {
         return a.isCompleted ? 1 : -1;
       }
-      final priorityCompare = b.priority.index.compareTo(a.priority.index);
+
+      final priorityCompare =
+          b.priority.index.compareTo(a.priority.index);
       if (priorityCompare != 0) return priorityCompare;
-      // Push tasks without a due date to the bottom
+
       if (a.dueDate == null && b.dueDate == null) return 0;
       if (a.dueDate == null) return 1;
       if (b.dueDate == null) return -1;
+
       return a.dueDate!.compareTo(b.dueDate!);
     });
   }
