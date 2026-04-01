@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task.dart';
 import '../models/session.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// FirestoreService handles ALL database operations using Firebase.
 ///
@@ -15,10 +16,17 @@ class FirestoreService {
   FirestoreService._internal();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// TEMP: hardcoded user until Firebase Auth is added
-  /// Later replace with: FirebaseAuth.instance.currentUser!.uid
-  String get _uid => 'demo-user';
+  /// Later replace with: FirebaseAuth.instance.currentUser!.uid (DONE)
+  String get _uid {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found.');
+    }
+    return user.uid;
+  }
 
   /// Reference to user's tasks collection
   CollectionReference<Map<String, dynamic>> get _tasksRef =>

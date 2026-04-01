@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../main.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -37,7 +38,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (mounted) {
-        Navigator.pop(context, true); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created successfully!')),
+        );
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainScaffold()),
+        );
       }
     } catch (e) {
       if (mounted) {

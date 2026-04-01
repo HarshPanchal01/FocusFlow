@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
-import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../providers/task_provider.dart';
-import '../screens/auth/login_screen.dart';
+import 'auth/login_screen.dart';
+import '../services/firestore_service.dart';
+import '../models/task.dart';
+import '../models/session.dart';
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -27,6 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   
   // Auth state
   final AuthService _auth = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
   bool _isLoading = true;
 
   @override
@@ -59,7 +63,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isLoggedIn = _auth.isLoggedIn;
+    final hasPermanentAccount = _auth.hasPermanentAccount;
+    final isAnonymousUser = _auth.isAnonymousUser;
     final userEmail = _auth.currentUserEmail ?? 'Guest';
 
     if (_isLoading) {
@@ -95,46 +100,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    isLoggedIn ? 'Welcome Back' : 'Welcome, Guest',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  // Get auth state
+                  Builder(
+                    builder: (context) {
+                      final hasPermanentAccount = _auth.currentUser != null &&
+                          !_auth.currentUser!.isAnonymous;
+
+                      final isAnonymousUser =
+                          _auth.currentUser != null && _auth.currentUser!.isAnonymous;
+
+                      final userEmail = _auth.currentUser?.email ?? 'Guest';
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Title
+                          Text(
+                            hasPermanentAccount ? 'Welcome Back' : 'Welcome, Guest',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          // Subtitle
+                          Text(
+                            hasPermanentAccount
+                                ? userEmail
+                                : 'Sign in to sync your data permanently',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Main button
+                          if (hasPermanentAccount)
+                            OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.textPrimary,
+                                side: const BorderSide(color: AppColors.divider),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Edit Profile not implemented yet'),
+                                  ),
+                                );
+                              },
+                              child: const Text('Edit Profile'),
+                            )
+                          else
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: AppColors.textOnPrimary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              onPressed: _openLogin,
+                              child: Text(
+                                isAnonymousUser
+                                    ? 'Create Account / Sign In'
+                                    : 'Sign In / Sign Up',
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isLoggedIn ? userEmail : 'Sign in to sync your data',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  if (isLoggedIn)
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: const BorderSide(color: AppColors.divider),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      onPressed: () {
-                         ScaffoldMessenger.of(context).showSnackBar(
-                           const SnackBar(content: Text('Edit Profile not implemented yet')),
-                         );
-                      },
-                      child: const Text('Edit profile'),
-                    )
-                  else
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.textOnPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      onPressed: _openLogin,
-                      child: const Text('Sign In / Sign Up'),
-                    ),
                 ],
               ),
             ),
@@ -332,7 +370,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               onPressed: () async {
-                await DatabaseService().seedDummyData();
+                await _seedDummySessions();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Seeded dummy sessions for last 7 days')),
@@ -355,7 +393,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               onPressed: () async {
-                await DatabaseService().seedDummyTasks();
+                await _seedDummyTasks();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Seeded 5 dummy tasks')),
@@ -368,7 +406,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 12),
 
             // Sign Out Button (Only if logged in)
-            if (isLoggedIn) ...[
+            if (_auth.currentUser != null &&
+                !_auth.currentUser!.isAnonymous) ...[
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.surface,
@@ -426,6 +465,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Signed out')),
       );
+    }
+  }
+
+  Future<void> _seedDummySessions() async {
+  final now = DateTime.now();
+
+  for (int i = 0; i < 7; i++) {
+    final day = now.subtract(Duration(days: i));
+
+    final session = Session(
+      startTime: DateTime(day.year, day.month, day.day, 10 + i, 0),
+      duration: 1500, // 25 minutes in seconds
+      isCompleted: true,
+      interruptionCount: i % 3,
+    );
+
+    await _firestoreService.insertSession(session);
+  }
+}
+
+  Future<void> _seedDummyTasks() async {
+    final tasks = [
+      Task(
+        title: 'Finish project report',
+        description: 'Complete the final Firebase migration write-up',
+        priority: Priority.high,
+        durationMinutes: 60,
+        category: 'Coursework',
+        dueDate: DateTime.now().add(const Duration(days: 1)),
+      ),
+      Task(
+        title: 'Review lecture notes',
+        description: 'Go over mobile dev slides',
+        priority: Priority.medium,
+        durationMinutes: 45,
+        category: 'Coursework',
+        dueDate: DateTime.now().add(const Duration(days: 2)),
+      ),
+      Task(
+        title: 'Workout',
+        description: '30-minute session',
+        priority: Priority.low,
+        durationMinutes: 30,
+        category: 'Health',
+        dueDate: DateTime.now().add(const Duration(days: 1)),
+      ),
+      Task(
+        title: 'Buy groceries',
+        description: 'Milk, eggs, bread, fruit',
+        priority: Priority.medium,
+        durationMinutes: 20,
+        category: 'Personal',
+        dueDate: DateTime.now().add(const Duration(days: 3)),
+      ),
+      Task(
+        title: 'Prepare presentation',
+        description: 'Practice demo for FocusFlow',
+        priority: Priority.high,
+        durationMinutes: 90,
+        category: 'Coursework',
+        dueDate: DateTime.now().add(const Duration(hours: 12)),
+      ),
+    ];
+
+    for (final task in tasks) {
+      await _firestoreService.insertTask(task);
+    }
+
+    // Reload provider so UI updates immediately
+    if (mounted) {
+      await Provider.of<TaskProvider>(context, listen: false).loadTasks();
+      setState(() {});
     }
   }
 
