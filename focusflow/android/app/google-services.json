@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "51953430917",
+    "project_id": "focusflow-updated",
+    "storage_bucket": "focusflow-updated.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:51953430917:android:a4ab8ea34b57ebc6f714ec",
+        "android_client_info": {
+          "package_name": "com.example.focusflow"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "51953430917-4mdaia4faatae11ijvu12796f0od765f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.focusflow",
+            "certificate_hash": "401275c0b87540007340c967bed9c8945487a2d4"
+          }
+        },
+        {
+          "client_id": "51953430917-cqbg1ilbtrkqhq6ri80vdsd1poe67f3k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.focusflow",
+            "certificate_hash": "beadd70d1ed1fbf672fa6eb8f1915fef459f9562"
+          }
+        },
+        {
+          "client_id": "51953430917-5h2pqnoosmltf4qebi8su75emmgqjvaj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdRAhJGHI9etw2KUdfS6WqvM4NJuORU2M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "51953430917-5h2pqnoosmltf4qebi8su75emmgqjvaj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

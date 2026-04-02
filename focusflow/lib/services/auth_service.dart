@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Firebase auth service for FocusFlow.
 ///
@@ -12,6 +13,7 @@ class AuthService {
   AuthService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   /// Stream for auth changes if needed later
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -79,17 +81,28 @@ class AuthService {
     return await signUp(email, password);
   }
 
-  /// TEMP STUB
-  /// Your login screen has a Google button, but Google auth is not set up yet.
-  /// This avoids compile errors for now.
+  /// Google auth implemented
   Future<void> signInWithGoogle() async {
-    throw UnimplementedError(
-      'Google Sign-In is not set up yet in this project.',
+    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+    if (googleUser == null) {
+      return;
+    }
+
+    final GoogleSignInAuthentication googleAuth =
+    await googleUser.authentication;
+
+    final AuthCredential credential = GoogleAuthProvider.credential(
+      idToken: googleAuth.idToken,
+      accessToken: googleAuth.accessToken,
     );
+
+    await _auth.signInWithCredential(credential);
   }
 
   Future<void> signOut() async {
     await _auth.signOut();
+    await _googleSignIn.signOut();
 
     // Optional: automatically create a new anonymous session after logout
     await _auth.signInAnonymously();
