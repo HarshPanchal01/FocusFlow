@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../models/session.dart';
-import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 
 class InsightsProvider extends ChangeNotifier {
-  final DatabaseService _dbService = DatabaseService();
+  final FirestoreService _dbService = FirestoreService();
 
   // State
   Map<int, double> _dailyTotals = {}; // 1 (Mon) -> 7 (Sun) : Total Hours

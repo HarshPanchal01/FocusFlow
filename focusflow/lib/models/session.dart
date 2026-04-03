@@ -1,6 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Session model (focus sessions / pomodoro sessions)
+///
+/// Key changes:
+/// - id is now Firestore doc ID (String)
+/// - taskId is also String (references Task.id)
+/// - startTime stored as Timestamp
 class Session {
-  final int? id;
-  final int? taskId;
+  final String? id;
+  final String? taskId; // references Firestore task ID
   final DateTime startTime;
   final int duration; // in seconds
   final bool isCompleted;
@@ -15,24 +23,64 @@ class Session {
     this.interruptionCount = 0,
   });
 
-  Map<String, dynamic> toMap() {
+  // ---------------- Firestore WRITE ----------------
+
+  /// Convert Session → Firestore document
+  Map<String, dynamic> toFirestore() {
     return {
-      if (id != null) 'id': id,
       'taskId': taskId,
-      'startTime': startTime.toIso8601String(),
+      'startTime': Timestamp.fromDate(startTime),
       'duration': duration,
-      'isCompleted': isCompleted ? 1 : 0,
-      'interruptionCount': interruptionCount, // No check needed, defaults to 0
+      'isCompleted': isCompleted,
+      'interruptionCount': interruptionCount,
     };
   }
 
-  factory Session.fromMap(Map<String, dynamic> map) {
+  // ---------------- Firestore READ ----------------
+
+  /// Convert Firestore document → Session
+  factory Session.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? {};
+
     return Session(
-      id: map['id'] as int?,
-      taskId: map['taskId'] as int?,
-      startTime: DateTime.parse(map['startTime'] as String),
-      duration: map['duration'] as int,
-      isCompleted: (map['isCompleted'] as int) == 1,
+      id: doc.id,
+      taskId: data['taskId'] as String?,
+      startTime: (data['startTime'] as Timestamp).toDate(),
+      duration: data['duration'] as int? ?? 0,
+      isCompleted: data['isCompleted'] as bool? ?? false,
+      interruptionCount: data['interruptionCount'] as int? ?? 0,
+    );
+  }
+
+  // ---------------- Optional Map helpers ----------------
+  // Useful if needed outside Firestore
+
+  Map<String, dynamic> toMap() {
+    return {
+      'taskId': taskId,
+      'startTime': startTime,
+      'duration': duration,
+      'isCompleted': isCompleted,
+      'interruptionCount': interruptionCount,
+    };
+  }
+
+  factory Session.fromMap(Map<String, dynamic> map, {String? id}) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
+    return Session(
+      id: id,
+      taskId: map['taskId'] as String?,
+      startTime: parseDate(map['startTime']),
+      duration: map['duration'] as int? ?? 0,
+      isCompleted: map['isCompleted'] as bool? ?? false,
       interruptionCount: map['interruptionCount'] as int? ?? 0,
     );
   }

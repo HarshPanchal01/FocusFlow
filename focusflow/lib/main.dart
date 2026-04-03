@@ -1,26 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'firebase_options.dart';
 import 'providers/task_provider.dart';
 import 'providers/timer_provider.dart';
 import 'providers/insights_provider.dart';
 import 'providers/scheduling_provider.dart';
 import 'services/notification_service.dart';
+import 'services/auth_service.dart';
 import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
+import 'screens/auth/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // TODO: Add Firebase configuration options once generated
-  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
-  // Initialize notification service
-  await NotificationService().initialize();
-  
+
+  try {
+    debugPrint('Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('Firebase initialized.');
+
+    // Ensure the app always has a Firebase user before Firestore is used.
+    debugPrint('Checking current user...');
+    if (AuthService().currentUser == null) {
+      debugPrint('No user found, signing in anonymously...');
+      await AuthService().signInAnonymously();
+      debugPrint('Anonymous sign-in successful.');
+    } else {
+      debugPrint('User already signed in: ${AuthService().currentUser?.uid}');
+    }
+
+    debugPrint('Initializing Notification Service...');
+    await NotificationService().initialize();
+    debugPrint('Notification Service initialized.');
+  } catch (e, stackTrace) {
+    debugPrint('ERROR DURING INITIALIZATION: $e');
+    debugPrint('STACKTRACE: $stackTrace');
+  }
+
   runApp(const FocusFlowApp());
 }
 
@@ -34,7 +57,6 @@ class FocusFlowApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) {
           final timerProvider = TimerProvider();
-          // Set timer provider in notification service for context-aware notifications
           NotificationService().setTimerProvider(timerProvider);
           return timerProvider;
         }),
@@ -44,7 +66,7 @@ class FocusFlowApp extends StatelessWidget {
       child: MaterialApp(
         title: 'FocusFlow',
         theme: appTheme,
-        home: const MainScaffold(),
+        home: const LoginScreen(),
       ),
     );
   }
@@ -60,12 +82,12 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const TodayScreen(),
-    const FocusScreen(),
-    const SuggestionsScreen(),
-    const InsightsScreen(),
-    const SettingsScreen(),
+  final List<Widget> _screens = const [
+    TodayScreen(),
+    FocusScreen(),
+    SuggestionsScreen(),
+    InsightsScreen(),
+    SettingsScreen(),
   ];
 
   void _onItemTapped(int index) {

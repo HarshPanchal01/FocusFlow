@@ -1,20 +1,21 @@
-/// Task model for FocusFlow.
-///
-/// Fields align with the proposal: title, description, priority,
-/// due date, estimated duration, category, and completion status.
-/// Includes toMap/fromMap for SQLite and toFirestore/fromFirestore
-/// stubs so the Firebase sync (Issue #5) can plug in later.
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Task model for FocusFlow (Firestore version)
+///
+/// Key changes from SQLite:
+/// - id is now a String (Firestore doc ID)
+/// - booleans stay booleans (no more 0/1)
+/// - dates use Firestore Timestamps
 enum Priority { low, medium, high }
 
 class Task {
-  final int? id; // SQLite auto-increment; null until inserted
+  final String? id; // Firestore document ID
   final String title;
   final String description;
   final Priority priority;
   final DateTime? dueDate;
-  final int durationMinutes; // estimated time to complete
-  final String category; // e.g. "Coursework", "Work", "Personal"
+  final int durationMinutes;
+  final String category;
   final bool isCompleted;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -33,79 +34,97 @@ class Task {
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
-  // --------------- SQLite helpers ---------------
+  // ---------------- Firestore WRITE ----------------
 
-  Map<String, dynamic> toMap() {
-    // Convert DateTime to ISO8601 string
-    // For dueDate, ensure we preserve the local time by converting to UTC first
-    // then back to local when reading (handled in fromMap)
-    String? formatDate(DateTime? date) {
-      if (date == null) return null;
-      // Convert to UTC for storage to ensure consistency
-      // When reading back, we'll convert to local
-      return date.toUtc().toIso8601String();
-    }
-    
+  /// Convert Task → Firestore document
+  Map<String, dynamic> toFirestore() {
     return {
-      if (id != null) 'id': id,
       'title': title,
       'description': description,
-      'priority': priority.index, // 0=low, 1=medium, 2=high
-      'dueDate': formatDate(dueDate),
+      'priority': priority.index,
+      'dueDate':
+          dueDate != null ? Timestamp.fromDate(dueDate!) : null,
       'durationMinutes': durationMinutes,
       'category': category,
-      'isCompleted': isCompleted ? 1 : 0,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'isCompleted': isCompleted,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
 
-  factory Task.fromMap(Map<String, dynamic> map) {
-    DateTime? parseDueDate(String? dateString) {
-      if (dateString == null) return null;
-      
-      final parsed = DateTime.tryParse(dateString);
-      if (parsed == null) return null;
-      
-      // Dates are stored in UTC, so convert to local time when reading
-      // This ensures the time displayed matches what the user selected
-      return parsed.isUtc ? parsed.toLocal() : parsed;
-    }
-    
+  // ---------------- Firestore READ ----------------
+
+  /// Convert Firestore document → Task
+  factory Task.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? {};
+
     return Task(
-      id: map['id'] as int?,
-      title: map['title'] as String,
-      description: map['description'] as String? ?? '',
-      priority: Priority.values[map['priority'] as int? ?? 1],
-      dueDate: parseDueDate(map['dueDate'] as String?),
-      durationMinutes: map['durationMinutes'] as int? ?? 25,
-      category: map['category'] as String? ?? 'General',
-      isCompleted: (map['isCompleted'] as int? ?? 0) == 1,
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'] as String)
+      id: doc.id, // Firestore doc ID
+      title: data['title'] as String? ?? '',
+      description: data['description'] as String? ?? '',
+      priority: Priority.values[(data['priority'] as int?) ?? 1],
+      dueDate: data['dueDate'] != null
+          ? (data['dueDate'] as Timestamp).toDate()
+          : null,
+      durationMinutes: data['durationMinutes'] as int? ?? 25,
+      category: data['category'] as String? ?? 'General',
+      isCompleted: data['isCompleted'] as bool? ?? false,
+      createdAt: data['createdAt'] != null
+          ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.parse(map['updatedAt'] as String)
+      updatedAt: data['updatedAt'] != null
+          ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
     );
   }
 
-  // --------------- Firestore stubs (Issue #5) ---------------
+  // ---------------- Generic Map (optional use) ----------------
+  // Useful if you ever need non-Firebase mapping
 
-  Map<String, dynamic> toFirestore() {
-    // TODO: implement when Firebase sync is added
-    return toMap()..remove('id'); // Firestore uses doc IDs, not int IDs
+  Map<String, dynamic> toMap() {
+    return {
+      'title': title,
+      'description': description,
+      'priority': priority.index,
+      'dueDate': dueDate,
+      'durationMinutes': durationMinutes,
+      'category': category,
+      'isCompleted': isCompleted,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
   }
 
-  factory Task.fromFirestore(Map<String, dynamic> map, String docId) {
-    // TODO: map Firestore doc to Task
-    return Task.fromMap(map);
+  factory Task.fromMap(Map<String, dynamic> map, {String? id}) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.tryParse(value);
+      return null;
+    }
+
+    return Task(
+      id: id,
+      title: map['title'] as String? ?? '',
+      description: map['description'] as String? ?? '',
+      priority: Priority.values[(map['priority'] as int?) ?? 1],
+      dueDate: parseDate(map['dueDate']),
+      durationMinutes: map['durationMinutes'] as int? ?? 25,
+      category: map['category'] as String? ?? 'General',
+      isCompleted: map['isCompleted'] as bool? ?? false,
+      createdAt: parseDate(map['createdAt']) ?? DateTime.now(),
+      updatedAt: parseDate(map['updatedAt']) ?? DateTime.now(),
+    );
   }
 
-  // --------------- Copy helper for updates ---------------
+  // ---------------- Copy helper ----------------
+  // Used when updating tasks
 
   Task copyWith({
-    int? id,
+    String? id,
     String? title,
     String? description,
     Priority? priority,
@@ -132,5 +151,5 @@ class Task {
   }
 
   @override
-  String toString() => 'Task(id: $id, title: $title, priority: $priority)';
+  String toString() => 'Task(id: $id, title: $title)';
 }
