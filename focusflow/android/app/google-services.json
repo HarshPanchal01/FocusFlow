@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "51953430917-bnu25sc5qu6h6efe2fhidol914ra6nss.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.focusflow",
+            "certificate_hash": "2087cffa1170c7551b81d750bc93a0e389773f23"
+          }
+        },
+        {
           "client_id": "51953430917-cqbg1ilbtrkqhq6ri80vdsd1poe67f3k.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

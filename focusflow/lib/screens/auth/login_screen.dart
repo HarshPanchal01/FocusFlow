@@ -229,7 +229,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Google Sign-In successful!')),
                                 );
-                                Navigator.pop(context, true);
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context, true);
+                                } else {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const MainScaffold()),
+                                  );
+                                }
                               }
                             } catch (e) {
                               if (mounted) {

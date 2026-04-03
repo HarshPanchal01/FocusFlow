@@ -19,16 +19,30 @@ import 'screens/auth/login_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    debugPrint('Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('Firebase initialized.');
 
-  // Ensure the app always has a Firebase user before Firestore is used.
-  if (AuthService().currentUser == null) {
-    await AuthService().signInAnonymously();
+    // Ensure the app always has a Firebase user before Firestore is used.
+    debugPrint('Checking current user...');
+    if (AuthService().currentUser == null) {
+      debugPrint('No user found, signing in anonymously...');
+      await AuthService().signInAnonymously();
+      debugPrint('Anonymous sign-in successful.');
+    } else {
+      debugPrint('User already signed in: ${AuthService().currentUser?.uid}');
+    }
+
+    debugPrint('Initializing Notification Service...');
+    await NotificationService().initialize();
+    debugPrint('Notification Service initialized.');
+  } catch (e, stackTrace) {
+    debugPrint('ERROR DURING INITIALIZATION: $e');
+    debugPrint('STACKTRACE: $stackTrace');
   }
-
-  await NotificationService().initialize();
 
   runApp(const FocusFlowApp());
 }
