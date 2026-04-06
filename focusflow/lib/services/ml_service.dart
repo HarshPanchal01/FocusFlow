@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/session.dart';
 import '../models/task.dart';
 import '../models/focus_pattern.dart';
-import '../services/firestore_service.dart';
+import '../services/data_sync_service.dart';
 
 /// MLService handles focus pattern extraction and K-means clustering
 /// to identify the user's optimal focus windows.
@@ -26,7 +26,7 @@ class MLService {
   factory MLService() => _instance;
   MLService._internal();
 
-  final FirestoreService _firestoreService = FirestoreService();
+  final DataSyncService _firestoreService = DataSyncService();
 
   // ════════════════════════════════════════════════════════════
   // FEATURE EXTRACTION

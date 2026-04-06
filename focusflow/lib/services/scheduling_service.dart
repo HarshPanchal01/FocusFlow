@@ -1,7 +1,7 @@
 import '../models/task.dart';
 import '../models/session.dart';
 import '../models/suggestion.dart';
-import 'firestore_service.dart';
+import 'data_sync_service.dart';
 
 /// Service that analyzes session patterns and generates adaptive scheduling suggestions.
 /// 
@@ -11,7 +11,7 @@ import 'firestore_service.dart';
 /// - Identifies high-focus periods (high completion, low interruptions)
 /// - Generates suggestions based on task metadata and focus patterns
 class SchedulingService {
-  final FirestoreService _dbService = FirestoreService();
+  final DataSyncService _dbService = DataSyncService();
 
   /// Analyze sessions from the last N days to identify focus patterns
   Future<Map<String, FocusWindow>> analyzeFocusPatterns({int daysToAnalyze = 14}) async {

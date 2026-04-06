@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../models/session.dart';
-import '../services/firestore_service.dart';
+import '../services/data_sync_service.dart';
 import '../services/ml_service.dart';
 import '../services/notification_service.dart';
 
@@ -14,13 +14,13 @@ import '../services/notification_service.dart';
 ///   3. During session: pause/resume, log interruptions (manual + auto)
 ///   4. Session ends (completed or stopped early)
 ///   5. Rating dialog shown → user rates focus quality 1-5
-///   6. Session saved to Firestore with rating
+///   6. Session saved to SQLite + Firestore with rating
 ///   7. ML service extracts focus pattern and saves it
 ///
-/// FIX from midterm: Now saves to Firestore (was incorrectly using SQLite
-/// while everything else had migrated to Firestore)
+/// Uses DataSyncService for offline-first behavior:
+/// writes to SQLite first, then syncs to Firestore in background.
 class TimerProvider extends ChangeNotifier {
-  final FirestoreService _dbService = FirestoreService();
+  final DataSyncService _dbService = DataSyncService();
   final MLService _mlService = MLService();
 
   // Timer state

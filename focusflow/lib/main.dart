@@ -8,6 +8,9 @@ import 'providers/insights_provider.dart';
 import 'providers/scheduling_provider.dart';
 import 'services/notification_service.dart';
 import 'services/auth_service.dart';
+import 'services/data_sync_service.dart';
+import 'services/connectivity_service.dart';
+import 'widgets/connectivity_banner.dart';
 import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
@@ -39,6 +42,14 @@ void main() async {
     debugPrint('Initializing Notification Service...');
     await NotificationService().initialize();
     debugPrint('Notification Service initialized.');
+
+    // Sync cloud data to local SQLite cache for offline-first behavior
+    debugPrint('Syncing data from cloud...');
+    await DataSyncService().syncFromCloud();
+
+    // Start monitoring connectivity for offline/online banners
+    debugPrint('Initializing connectivity monitoring...');
+    await ConnectivityService().initialize();
   } catch (e, stackTrace) {
     debugPrint('ERROR DURING INITIALIZATION: $e');
     debugPrint('STACKTRACE: $stackTrace');
@@ -62,6 +73,7 @@ class FocusFlowApp extends StatelessWidget {
         }),
         ChangeNotifierProvider(create: (_) => InsightsProvider()),
         ChangeNotifierProvider(create: (_) => SchedulingProvider()),
+        ChangeNotifierProvider.value(value: ConnectivityService()),
       ],
       child: MaterialApp(
         title: 'FocusFlow',
@@ -103,7 +115,14 @@ class _MainScaffoldState extends State<MainScaffold> {
         title: const Text('FocusFlow', style: TextStyle(color: Colors.white)),
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
-      body: _screens[_selectedIndex],
+      body: Column(
+        children: [
+          // Connectivity banner — only visible when offline or just reconnected
+          const ConnectivityBanner(),
+          // Main screen content
+          Expanded(child: _screens[_selectedIndex]),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[

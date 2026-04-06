@@ -66,7 +66,7 @@ class AuthService {
     );
   }
 
-  /// Optional explicit methods if you want to use them later
+  /// Optional explicit methods for later
   Future<UserCredential> signInWithEmailPassword({
     required String email,
     required String password,
