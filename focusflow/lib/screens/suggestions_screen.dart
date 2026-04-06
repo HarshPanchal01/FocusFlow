@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../providers/scheduling_provider.dart';
 import '../providers/task_provider.dart';
 import '../models/suggestion.dart';
+import '../services/ml_service.dart';
 
 class SuggestionsScreen extends StatefulWidget {
   const SuggestionsScreen({super.key});
@@ -122,19 +123,225 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
           return RefreshIndicator(
             onRefresh: () => provider.refreshSuggestions(),
-            child: ListView.separated(
+            child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              itemCount: provider.suggestions.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final suggestion = provider.suggestions[index];
-                return _buildSuggestionCard(context, suggestion, provider);
-              },
+              children: [
+                // ML Focus Windows section (shows when enough data exists)
+                if (provider.hasMLData && provider.focusWindows.isNotEmpty)
+                  _buildFocusWindowsCard(context, provider),
+
+                // Data collection progress (shows when not enough data yet)
+                if (!provider.hasMLData)
+                  _buildDataCollectionCard(context, provider),
+
+                // Existing suggestions list
+                ...List.generate(provider.suggestions.length, (index) {
+                  final suggestion = provider.suggestions[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _buildSuggestionCard(context, suggestion, provider),
+                  );
+                }),
+              ],
             ),
           );
         },
       ),
     );
+  }
+
+  Widget _buildFocusWindowsCard(BuildContext context, SchedulingProvider provider) {
+    final dayNames = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 8,
+            spreadRadius: 0.5,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Your Focus Patterns',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${provider.totalPatterns} sessions analyzed',
+                  style: const TextStyle(fontSize: 10, color: Colors.white70),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Show each focus window
+          ...provider.focusWindows.map((window) {
+            final daysStr = window.peakDays.map((d) => dayNames[d]).join(', ');
+            final hourStr = _formatHour(window.peakHour);
+
+            final icon = window.quality == 'high'
+                ? Icons.bolt
+                : window.quality == 'medium'
+                    ? Icons.trending_flat
+                    : Icons.trending_down;
+
+            final qualityLabel = window.quality == 'high'
+                ? 'Peak Focus'
+                : window.quality == 'medium'
+                    ? 'Moderate Focus'
+                    : 'Light Work';
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, color: Colors.white, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$qualityLabel — $hourStr',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            '$daysStr • ${window.sessionCount} sessions • '
+                            '${window.avgDurationMinutes.round()} min avg',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Score badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${(window.avgFocusScore * 100).toInt()}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataCollectionCard(BuildContext context, SchedulingProvider provider) {
+    final sessionsNeeded = 3 - provider.totalPatterns;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 8,
+            spreadRadius: 0.5,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, color: AppColors.primary, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Learning Your Patterns',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Complete $sessionsNeeded more focus session${sessionsNeeded == 1 ? '' : 's'} '
+                  'with a rating to unlock ML-powered scheduling.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: provider.totalPatterns / 3.0,
+                    minHeight: 6,
+                    backgroundColor: AppColors.divider,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatHour(int hour) {
+    if (hour == 0) return '12:00 AM';
+    if (hour < 12) return '$hour:00 AM';
+    if (hour == 12) return '12:00 PM';
+    return '${hour - 12}:00 PM';
   }
 
   Widget _buildSuggestionCard(

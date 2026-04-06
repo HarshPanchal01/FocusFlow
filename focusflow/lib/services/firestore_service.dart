@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task.dart';
 import '../models/session.dart';
+import '../models/focus_pattern.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 /// FirestoreService handles ALL database operations using Firebase.
@@ -35,6 +36,10 @@ class FirestoreService {
   /// Reference to user's sessions collection
   CollectionReference<Map<String, dynamic>> get _sessionsRef =>
       _firestore.collection('users').doc(_uid).collection('sessions');
+
+  /// Reference to user's focus patterns collection (ML data)
+  CollectionReference<Map<String, dynamic>> get _patternsRef =>
+      _firestore.collection('users').doc(_uid).collection('focus_patterns');
 
   // ---------------- TASKS ----------------
 
@@ -165,6 +170,45 @@ class FirestoreService {
 
     return snapshot.docs
         .map((doc) => Session.fromFirestore(doc))
+        .toList();
+  }
+
+  /// Update an existing session (e.g. to add selfRating after the fact)
+  Future<void> updateSession(Session session) async {
+    if (session.id == null) return;
+    await _sessionsRef.doc(session.id).update(session.toFirestore());
+  }
+
+  // ---------------- FOCUS PATTERNS (ML DATA) ----------------
+
+  /// Save an extracted focus pattern for ML clustering
+  Future<FocusPattern> insertFocusPattern(FocusPattern pattern) async {
+    final docRef = await _patternsRef.add(pattern.toFirestore());
+    final doc = await docRef.get();
+    return FocusPattern.fromFirestore(doc);
+  }
+
+  /// Get all focus patterns (for clustering)
+  Future<List<FocusPattern>> getFocusPatterns() async {
+    final snapshot = await _patternsRef
+        .orderBy('createdAt', descending: true)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => FocusPattern.fromFirestore(doc))
+        .toList();
+  }
+
+  /// Get recent patterns (last N days) for incremental retraining
+  Future<List<FocusPattern>> getRecentPatterns({int days = 30}) async {
+    final cutoff = DateTime.now().subtract(Duration(days: days));
+    final snapshot = await _patternsRef
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(cutoff))
+        .orderBy('createdAt')
+        .get();
+
+    return snapshot.docs
+        .map((doc) => FocusPattern.fromFirestore(doc))
         .toList();
   }
 }

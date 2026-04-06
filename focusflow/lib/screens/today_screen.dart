@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
-import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 import 'add_task_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -282,7 +282,7 @@ class _DailyFocusBannerState extends State<_DailyFocusBanner> {
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      final sessions = await DatabaseService().getSessionsForRange(startOfDay, endOfDay);
+      final sessions = await FirestoreService().getSessionsForRange(startOfDay, endOfDay);
 
       double totalMinutes = 0;
       for (final session in sessions) {
