@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/insights_provider.dart';
-import '../theme/app_theme.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -21,8 +20,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -31,8 +33,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
             children: [
               Text(
                 'Weekly Insights',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.textPrimary,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: colorScheme.onSurface,
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                 ),
@@ -50,8 +52,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
               
               Text(
                 'Daily Focus Activity',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -68,8 +70,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                       return Center(
                         child: Text(
                           'No focus data for this week yet.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       );
@@ -86,19 +88,21 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildSummaryCard(BuildContext context, InsightsProvider provider) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+          colors: [colorScheme.primary, colorScheme.primary.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: colorScheme.primary.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -107,10 +111,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Total Focus Time',
             style: TextStyle(
-              color: Colors.white70,
+              color: colorScheme.onPrimary.withValues(alpha: 0.7),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -118,17 +122,17 @@ class _InsightsScreenState extends State<InsightsScreen> {
           const SizedBox(height: 8),
           Text(
             '${provider.weeklyTotalHours.toStringAsFixed(1)} hrs',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: colorScheme.onPrimary,
               fontSize: 32,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'This Week',
             style: TextStyle(
-              color: Colors.white70,
+              color: colorScheme.onPrimary.withValues(alpha: 0.7),
               fontSize: 12,
             ),
           ),
@@ -138,10 +142,15 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildWeeklyChart(BuildContext context, InsightsProvider provider) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: (provider.dailyTotals.values.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1.0, 24.0),
+        maxY: (provider.dailyTotals.values.isEmpty 
+            ? 1.0 
+            : (provider.dailyTotals.values.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1.0, 24.0)),
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
@@ -160,8 +169,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               getTitlesWidget: (double value, TitleMeta meta) {
-                const style = TextStyle(
-                  color: AppColors.textSecondary,
+                final style = TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 );
@@ -184,17 +193,17 @@ class _InsightsScreenState extends State<InsightsScreen> {
               },
             ),
           ),
-          leftTitles: AxisTitles(
+          leftTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          topTitles: AxisTitles(
+          topTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          rightTitles: AxisTitles(
+          rightTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
         ),
-        gridData: FlGridData(show: false),
+        gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         barGroups: List.generate(7, (index) {
           final day = index + 1;
@@ -204,7 +213,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
             barRods: [
               BarChartRodData(
                 toY: value,
-                color: value > 0 ? AppColors.secondary : Colors.grey.shade300,
+                color: value > 0 ? colorScheme.secondary : colorScheme.onSurface.withValues(alpha: 0.1),
                 width: 16,
                 borderRadius: BorderRadius.circular(4),
               ),

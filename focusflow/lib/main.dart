@@ -11,6 +11,7 @@ import 'services/auth_service.dart';
 import 'services/data_sync_service.dart';
 import 'services/connectivity_service.dart';
 import 'widgets/connectivity_banner.dart';
+import 'providers/theme_provider.dart';
 import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
@@ -74,11 +75,18 @@ class FocusFlowApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InsightsProvider()),
         ChangeNotifierProvider(create: (_) => SchedulingProvider()),
         ChangeNotifierProvider.value(value: ConnectivityService()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'FocusFlow',
-        theme: appTheme,
-        home: const LoginScreen(),
+      child: Builder(
+        builder: (context) {
+          final themeProvider = context.watch<ThemeProvider>();
+          return MaterialApp(
+            title: 'FocusFlow',
+            theme: themeProvider.getTheme(MediaQuery.of(context).platformBrightness),
+            home: const LoginScreen(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }

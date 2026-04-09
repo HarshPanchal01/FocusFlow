@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import '../providers/task_provider.dart';
 import '../providers/timer_provider.dart';
 import '../models/task.dart';
-import '../theme/app_theme.dart';
 
 class FocusScreen extends StatefulWidget {
   const FocusScreen({super.key});
@@ -83,18 +82,23 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
       builder: (context) {
         return Container(
           height: 250,
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           child: Column(
             children: [
               Expanded(
-                child: CupertinoTimerPicker(
-                  mode: CupertinoTimerPickerMode.hms,
-                  initialTimerDuration: initialDuration,
-                  minuteInterval: 1,
-                  secondInterval: 1,
-                  onTimerDurationChanged: (Duration newDuration) {
-                    tempDuration = newDuration;
-                  },
+                child: CupertinoTheme(
+                  data: CupertinoThemeData(
+                    brightness: Theme.of(context).brightness,
+                  ),
+                  child: CupertinoTimerPicker(
+                    mode: CupertinoTimerPickerMode.hms,
+                    initialTimerDuration: initialDuration,
+                    minuteInterval: 1,
+                    secondInterval: 1,
+                    onTimerDurationChanged: (Duration newDuration) {
+                      tempDuration = newDuration;
+                    },
+                  ),
                 ),
               ),
               Padding(
@@ -124,6 +128,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   }
 
   void _showRatingDialog(BuildContext context, TimerProvider timer) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -136,9 +142,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Rate your focus quality for this session.',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                    style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.6)),
                   ),
                   const SizedBox(height: 16),
                   // 5 emoji buttons in a row
@@ -155,11 +161,11 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                           height: 48,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.primary.withOpacity(0.15)
+                                ? colorScheme.primary.withValues(alpha: 0.15)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                              color: isSelected ? colorScheme.primary : colorScheme.onSurface.withValues(alpha: 0.12),
                               width: isSelected ? 2 : 1,
                             ),
                           ),
@@ -174,9 +180,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                   // Labels under the emojis
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('Distracted', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      Text('Deep focus', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    children: [
+                      Text('Distracted', style: TextStyle(fontSize: 10, color: colorScheme.onSurface.withValues(alpha: 0.5))),
+                      Text('Deep focus', style: TextStyle(fontSize: 10, color: colorScheme.onSurface.withValues(alpha: 0.5))),
                     ],
                   ),
                 ],
@@ -197,8 +203,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textOnPrimary,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                   ),
                   child: const Text('Submit'),
                 ),
@@ -266,6 +272,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Consumer<TimerProvider>(
       builder: (context, timer, _) {
         // Show rating dialog when session just ended
@@ -280,7 +289,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
         }
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: colorScheme.background,
           body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -290,8 +299,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                   // Header
                   Text(
                     'Focus Session',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.textPrimary,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: colorScheme.onBackground,
                       fontWeight: FontWeight.bold,
                       fontSize: 22,
                     ),
@@ -308,7 +317,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: const [
                         BoxShadow(
@@ -332,8 +341,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                     children: [
                       Text(
                         'Interruptions${timer.interruptionCount > 0 ? ' (${timer.interruptionCount})' : ''}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -344,7 +353,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('Log'),
                           style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primary,
+                            foregroundColor: colorScheme.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             minimumSize: const Size(0, 36),
                           ),
@@ -356,9 +365,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: colorScheme.surface,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.divider),
+                        border: Border.all(color: theme.dividerColor),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x22000000),
@@ -374,8 +383,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                                 timer.isSessionActive
                                     ? 'No interruptions yet — stay focused!'
                                     : 'No interruptions logged yet.',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondary,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                                 ),
                               ),
                             )
@@ -392,16 +401,16 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                                   leading: Icon(
                                     isAuto ? Icons.phone_android : Icons.front_hand,
                                     size: 20,
-                                    color: isAuto ? Colors.orange : AppColors.primary,
+                                    color: isAuto ? Colors.orange : colorScheme.primary,
                                   ),
                                   title: Text(
                                     interruption['type'] ?? 'Unknown',
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    style: theme.textTheme.bodyMedium,
                                   ),
                                   trailing: Text(
                                     interruption['time'] ?? '',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                                   ),
                                 );
@@ -419,6 +428,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildTaskSelector(BuildContext context, TimerProvider timer) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Consumer<TaskProvider>(
       builder: (context, taskProvider, _) {
         final tasks = taskProvider.incompleteTasks;
@@ -426,7 +437,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(8),
             boxShadow: const [
               BoxShadow(
@@ -443,7 +454,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
               Text(
                 'Current Focus Session Goal',
                 style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.textSecondary),
+                    ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.7)),
               ),
               const SizedBox(height: 4),
               InkWell(
@@ -483,8 +494,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                       timer.selectedTask?.title ?? 'No task selected',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: timer.isSessionActive 
-                            ? AppColors.textSecondary 
-                            : AppColors.textPrimary,
+                            ? colorScheme.onSurface.withValues(alpha: 0.6)
+                            : colorScheme.onSurface,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -502,12 +513,15 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildSetupTimer(BuildContext context, TimerProvider timer) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Column(
       children: [
         Text(
           'Set Timer',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: AppColors.textPrimary,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -518,14 +532,14 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primary, width: 2),
+              border: Border.all(color: colorScheme.primary, width: 2),
               borderRadius: BorderRadius.circular(12),
-              color: AppColors.background,
+              color: colorScheme.background,
             ),
             child: Text(
               _formatTime(timer.totalSeconds),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: AppColors.primary,
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: colorScheme.primary,
                 fontWeight: FontWeight.bold,
                 fontSize: 32,
               ),
@@ -535,8 +549,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
         const SizedBox(height: 18),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.textOnPrimary,
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -549,12 +563,15 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildActiveTimer(BuildContext context, TimerProvider timer) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Column(
       children: [
         Text(
           _formatTime(timer.secondsLeft),
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: AppColors.textPrimary,
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
             fontSize: 28,
           ),
@@ -562,8 +579,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
         const SizedBox(height: 2),
         Text(
           'of ${_formatTime(timer.totalSeconds)}',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurface.withValues(alpha: 0.6),
             fontSize: 13,
           ),
         ),
@@ -572,8 +589,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
         // Progress bar
         LinearProgressIndicator(
           value: timer.progress,
-          backgroundColor: AppColors.divider,
-          color: AppColors.primary,
+          backgroundColor: theme.dividerColor,
+          color: colorScheme.primary,
           minHeight: 10,
           borderRadius: BorderRadius.circular(4),
         ),
@@ -586,8 +603,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
             Expanded(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: AppColors.textPrimary,
+                  backgroundColor: colorScheme.secondary,
+                  foregroundColor: colorScheme.onSecondary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),

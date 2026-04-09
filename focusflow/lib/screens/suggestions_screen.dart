@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../theme/app_theme.dart';
 import '../providers/scheduling_provider.dart';
 import '../providers/task_provider.dart';
 import '../models/suggestion.dart';
-import '../services/ml_service.dart';
 
 class SuggestionsScreen extends StatefulWidget {
   const SuggestionsScreen({super.key});
@@ -72,10 +70,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: colorScheme.primary,
         elevation: 0,
         toolbarHeight: 0, // Hide the AppBar content
       ),
@@ -93,21 +94,21 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   Icon(
                     Icons.lightbulb_outline,
                     size: 64,
-                    color: AppColors.textSecondary,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'No suggestions available',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Complete some focus sessions to get personalized scheduling suggestions',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -151,12 +152,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Widget _buildFocusWindowsCard(BuildContext context, SchedulingProvider provider) {
+    final colorScheme = Theme.of(context).colorScheme;
     final dayNames = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: colorScheme.primary,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
@@ -173,12 +175,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+              Icon(Icons.auto_awesome, color: colorScheme.onPrimary, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Your Focus Patterns',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
+                  color: colorScheme.onPrimary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -186,12 +188,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: colorScheme.onPrimary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${provider.totalPatterns} sessions analyzed',
-                  style: const TextStyle(fontSize: 10, color: Colors.white70),
+                  style: TextStyle(fontSize: 10, color: colorScheme.onPrimary.withValues(alpha: 0.7)),
                 ),
               ),
             ],
@@ -220,12 +222,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: colorScheme.onPrimary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(icon, color: Colors.white, size: 18),
+                    Icon(icon, color: colorScheme.onPrimary, size: 18),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -233,8 +235,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                         children: [
                           Text(
                             '$qualityLabel — $hourStr',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: colorScheme.onPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
                             ),
@@ -242,8 +244,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                           Text(
                             '$daysStr • ${window.sessionCount} sessions • '
                             '${window.avgDurationMinutes.round()} min avg',
-                            style: const TextStyle(
-                              color: Colors.white70,
+                            style: TextStyle(
+                              color: colorScheme.onPrimary.withValues(alpha: 0.7),
                               fontSize: 11,
                             ),
                           ),
@@ -254,13 +256,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.white24,
+                        color: colorScheme.onPrimary.withValues(alpha: 0.24),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         '${(window.avgFocusScore * 100).toInt()}%',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: colorScheme.onPrimary,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
@@ -277,14 +279,16 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Widget _buildDataCollectionCard(BuildContext context, SchedulingProvider provider) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final sessionsNeeded = 3 - provider.totalPatterns;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),
@@ -297,7 +301,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Icon(Icons.auto_awesome, color: AppColors.primary, size: 28),
+          Icon(Icons.auto_awesome, color: colorScheme.primary, size: 28),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -305,17 +309,17 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               children: [
                 Text(
                   'Learning Your Patterns',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Complete $sessionsNeeded more focus session${sessionsNeeded == 1 ? '' : 's'} '
                   'with a rating to unlock ML-powered scheduling.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -325,8 +329,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   child: LinearProgressIndicator(
                     value: provider.totalPatterns / 3.0,
                     minHeight: 6,
-                    backgroundColor: AppColors.divider,
-                    color: AppColors.primary,
+                    backgroundColor: theme.dividerColor,
+                    color: colorScheme.primary,
                   ),
                 ),
               ],
@@ -349,9 +353,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     Suggestion suggestion,
     SchedulingProvider provider,
   ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
@@ -374,15 +381,15 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.7),
+                      color: colorScheme.secondary.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(4),
                     ),
                 child: Text(
                   _formatSuggestionType(suggestion.type),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSecondary,
                   ),
                 ),
               ),
@@ -415,10 +422,10 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
           const SizedBox(height: 12),
           Text(
             suggestion.task.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 4),
@@ -427,27 +434,27 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               suggestion.suggestedStartTime,
               suggestion.suggestedEndTime,
             ),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontStyle: FontStyle.italic,
-              color: AppColors.textSecondary,
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             suggestion.reason,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           if (suggestion.task.description.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               suggestion.task.description,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -460,8 +467,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               Expanded(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textOnPrimary,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -482,9 +489,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
+                    foregroundColor: colorScheme.onSurface,
                     side: BorderSide(
-                      color: AppColors.secondary,
+                      color: colorScheme.secondary,
                       width: 1.5,
                     ),
                     shape: RoundedRectangleBorder(
