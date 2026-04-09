@@ -5,6 +5,7 @@ import '../models/session.dart';
 import '../services/data_sync_service.dart';
 import '../services/ml_service.dart';
 import '../services/notification_service.dart';
+import '../services/device_orientation_service.dart';
 
 /// TimerProvider manages focus session state and lifecycle.
 ///
@@ -22,6 +23,7 @@ import '../services/notification_service.dart';
 class TimerProvider extends ChangeNotifier {
   final DataSyncService _dbService = DataSyncService();
   final MLService _mlService = MLService();
+  final DeviceOrientationService _orientationService = DeviceOrientationService();
 
   // Timer state
   Timer? _timer;
@@ -60,6 +62,31 @@ class TimerProvider extends ChangeNotifier {
   // TASK SELECTION
   // ════════════════════════════════════════════════════════════
 
+  TimerProvider() {
+    _orientationService.addListener(_onOrientationChanged);
+  }
+
+  void _onOrientationChanged() {
+    if (!_isSessionActive || !_isRunning) return;
+
+    final state = _orientationService.currentState;
+    if (state == DeviceOrientationState.held) {
+      // If the user picks up the phone during a session, we log an automatic interruption.
+      // But we don't want to spam interruptions if they keep holding it, 
+      // so we check the time of the last interruption.
+      if (_interruptions.isEmpty || _timeSinceLastInterruption() > const Duration(minutes: 1)) {
+        logInterruption('Picked Up Phone (Auto-Detected)');
+      }
+    }
+  }
+
+  Duration _timeSinceLastInterruption() {
+    if (_interruptions.isEmpty) return const Duration(days: 99); // Safe large value
+    return DateTime.now().difference(_lastAutoInterruptionTime ?? DateTime.fromMillisecondsSinceEpoch(0));
+  }
+
+  DateTime? _lastAutoInterruptionTime;
+
   /// Select a task and auto-set timer to its estimated duration.
   void selectTask(Task? task) {
     if (_isSessionActive) return;
@@ -91,6 +118,9 @@ class TimerProvider extends ChangeNotifier {
 
     _isRunning = true;
     _isSessionActive = true;
+    
+    _orientationService.startMonitoring();
+    _lastAutoInterruptionTime = null;
     notifyListeners();
 
     _timer?.cancel();
@@ -107,11 +137,13 @@ class TimerProvider extends ChangeNotifier {
   void pauseTimer() {
     _isRunning = false;
     _timer?.cancel();
+    _orientationService.stopMonitoring();
     notifyListeners();
   }
 
   void resumeTimer() {
     if (!_isSessionActive || _secondsLeft <= 0) return;
+    _orientationService.startMonitoring();
     startTimer();
   }
 
@@ -135,6 +167,7 @@ class TimerProvider extends ChangeNotifier {
     _timer?.cancel();
     _isRunning = false;
     _isSessionActive = false;
+    _orientationService.stopMonitoring();
 
     // Create the session but don't save yet — wait for rating
     _pendingSession = Session(
@@ -210,6 +243,10 @@ class TimerProvider extends ChangeNotifier {
   void logInterruption(String type) {
     if (!_isSessionActive) return;
 
+    if (type == 'Picked Up Phone (Auto-Detected)') {
+      _lastAutoInterruptionTime = DateTime.now();
+    }
+
     final now = DateTime.now();
     final timeLabel =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -221,6 +258,8 @@ class TimerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    _orientationService.removeListener(_onOrientationChanged);
+    _orientationService.dispose();
     super.dispose();
   }
 }
