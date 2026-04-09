@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../providers/insights_provider.dart';
-import '../theme/app_theme.dart';
 
 String _localDayKey(DateTime t) {
   final d = t.toLocal();
@@ -82,11 +81,14 @@ class _FocusCalendarSheetState extends State<_FocusCalendarSheet> {
     final now = DateTime.now();
     final canGoNext = _visibleMonth.year < now.year ||
         (_visibleMonth.year == now.year && _visibleMonth.month < now.month);
+    
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
         left: 20,
@@ -103,7 +105,7 @@ class _FocusCalendarSheetState extends State<_FocusCalendarSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: theme.dividerColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -114,15 +116,15 @@ class _FocusCalendarSheetState extends State<_FocusCalendarSheet> {
               IconButton(
                 onPressed: _prevMonth,
                 icon: const Icon(Icons.chevron_left),
-                color: AppColors.primary,
+                color: colorScheme.primary,
                 tooltip: 'Previous month',
               ),
               Expanded(
                 child: Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.textPrimary,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                        color: colorScheme.onSurface,
                         fontWeight: FontWeight.w600,
                       ),
                 ),
@@ -130,7 +132,7 @@ class _FocusCalendarSheetState extends State<_FocusCalendarSheet> {
               IconButton(
                 onPressed: canGoNext ? _nextMonth : null,
                 icon: const Icon(Icons.chevron_right),
-                color: AppColors.primary,
+                color: colorScheme.primary,
                 tooltip: 'Next month',
               ),
             ],
@@ -139,8 +141,8 @@ class _FocusCalendarSheetState extends State<_FocusCalendarSheet> {
           Text(
             'Days with at least one focus session',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
+            style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
           ),
           const SizedBox(height: 16),
@@ -185,6 +187,9 @@ class _MonthGrid extends StatelessWidget {
     final daysInMonth = DateTime(year, month + 1, 0).day;
     final leading = first.weekday - 1;
     final totalCells = ((leading + daysInMonth + 6) ~/ 7) * 7;
+    
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Column(
       children: [
@@ -195,8 +200,8 @@ class _MonthGrid extends StatelessWidget {
                   child: Text(
                     l,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textSecondary,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w600,
                         ),
                   ),
@@ -229,18 +234,18 @@ class _MonthGrid extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: hasFocus
-                    ? AppColors.primary.withValues(alpha: 0.85)
-                    : AppColors.background,
+                    ? colorScheme.primary.withValues(alpha: 0.85)
+                    : colorScheme.background,
                 borderRadius: BorderRadius.circular(8),
                 border: isToday
-                    ? Border.all(color: AppColors.secondary, width: 2)
+                    ? Border.all(color: colorScheme.secondary, width: 2)
                     : null,
               ),
               child: Text(
                 '$dayNum',
                 style: TextStyle(
                   fontWeight: hasFocus ? FontWeight.w600 : FontWeight.w500,
-                  color: hasFocus ? Colors.white : AppColors.textPrimary,
+                  color: hasFocus ? colorScheme.onPrimary : colorScheme.onSurface,
                   fontSize: 14,
                 ),
               ),
