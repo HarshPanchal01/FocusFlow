@@ -199,6 +199,28 @@ class FirestoreService {
         .toList();
   }
 
+  /// Deletes every document in [collection] in batches of 500.
+  Future<void> _deleteEntireCollection(
+    CollectionReference<Map<String, dynamic>> collection,
+  ) async {
+    while (true) {
+      final snap = await collection.limit(500).get();
+      if (snap.docs.isEmpty) break;
+      final batch = _firestore.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+  }
+
+  /// Removes all tasks, sessions, and focus patterns for the current user.
+  Future<void> deleteAllUserData() async {
+    await _deleteEntireCollection(_tasksRef);
+    await _deleteEntireCollection(_sessionsRef);
+    await _deleteEntireCollection(_patternsRef);
+  }
+
   /// Get recent patterns (last N days) for incremental retraining
   Future<List<FocusPattern>> getRecentPatterns({int days = 30}) async {
     final cutoff = DateTime.now().subtract(Duration(days: days));

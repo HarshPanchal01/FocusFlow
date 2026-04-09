@@ -6,6 +6,19 @@ import '../providers/timer_provider.dart';
 import '../models/task.dart';
 import '../theme/app_theme.dart';
 
+bool _isAutoInterruption(String? type) {
+  if (type == null) return false;
+  switch (type) {
+    case 'Picked Up Phone (Auto-Detected)':
+    case 'Screen turned off':
+    case 'Switched away from app':
+    case 'App not focused (notifications, quick settings, or system)':
+      return true;
+    default:
+      return false;
+  }
+}
+
 class FocusScreen extends StatefulWidget {
   const FocusScreen({super.key});
 
@@ -45,15 +58,11 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // Auto-detect when user leaves the app during a focus session
-  // This fires when the user switches to another app, goes to home screen, etc.
+  /// Routes lifecycle to [TimerProvider] for: overlay / system UI, swipe away,
+  /// home, recents, and (with Android) coordination with screen-off events.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final timerProvider = context.read<TimerProvider>();
-    if (timerProvider.isSessionActive && state == AppLifecycleState.paused) {
-      // User left the app while a session was running — log it automatically
-      timerProvider.logInterruption('Left App');
-    }
+    context.read<TimerProvider>().handleAppLifecycle(state);
   }
 
   @override
@@ -385,7 +394,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                               separatorBuilder: (_, __) => const Divider(height: 1),
                               itemBuilder: (context, index) {
                                 final interruption = timer.interruptions[index];
-                                final isAuto = interruption['type'] == 'Left App';
+                                final isAuto = _isAutoInterruption(interruption['type']);
                                 return ListTile(
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,

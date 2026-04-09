@@ -5,10 +5,13 @@ import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../providers/task_provider.dart';
+import '../providers/insights_provider.dart';
+import '../providers/scheduling_provider.dart';
 import 'auth/login_screen.dart';
 import '../services/firestore_service.dart';
+import '../services/data_sync_service.dart';
+import '../services/dummy_data_service.dart';
 import '../models/task.dart';
-import '../models/session.dart';
 
 
 class SettingsScreen extends StatefulWidget {
@@ -359,49 +362,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Seed Data (Developer)
+            // Seed Data (Developer) — single action
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondary,
-                foregroundColor: AppColors.textPrimary,
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              onPressed: () async {
-                await _seedDummySessions();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Seeded dummy sessions for last 7 days')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.science),
-              label: const Text('Seed Dummy Data'),
+              onPressed: _seedAllDemoData,
+              icon: const Icon(Icons.auto_fix_high),
+              label: const Text('Seed all demo data'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            Text(
+              'Adds 5 sample tasks, 7 rolling-day sessions, Mon–Sun sessions for this week’s chart, '
+              'and the streak/history pack (extra past days). Then refreshes insights and suggestions.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
 
-            // Seed Tasks (Developer)
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondary,
-                foregroundColor: AppColors.textPrimary,
-                elevation: 0,
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: const BorderSide(color: AppColors.error),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              onPressed: () async {
-                await _seedDummyTasks();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Seeded 5 dummy tasks')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.list_alt),
-              label: const Text('Seed Dummy Tasks'),
+              onPressed: _confirmAndClearAllData,
+              icon: const Icon(Icons.delete_forever_outlined),
+              label: const Text('Clear all app data'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Removes all tasks, focus sessions, and ML patterns from this device '
+              'and from the cloud when you are online. Settings and your account stay.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -468,22 +471,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _seedDummySessions() async {
-  final now = DateTime.now();
+  Future<void> _confirmAndClearAllData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear all app data?'),
+        content: const Text(
+          'This deletes every task, focus session, and saved focus pattern '
+          'from this device and from your cloud backup (when online). '
+          'Notification reminders tied to tasks will be cancelled.\n\n'
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Clear everything'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
 
-  for (int i = 0; i < 7; i++) {
-    final day = now.subtract(Duration(days: i));
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final insightsProvider = Provider.of<InsightsProvider>(context, listen: false);
+    final schedulingProvider = Provider.of<SchedulingProvider>(context, listen: false);
 
-    final session = Session(
-      startTime: DateTime(day.year, day.month, day.day, 10 + i, 0),
-      duration: 1500, // 25 minutes in seconds
-      isCompleted: true,
-      interruptionCount: i % 3,
+    try {
+      await DataSyncService().clearAllData();
+      await NotificationService().cancelAllNotifications();
+      if (!mounted) return;
+      await taskProvider.loadTasks();
+      await insightsProvider.loadWeeklyInsights();
+      await schedulingProvider.loadSuggestions(tasks: taskProvider.incompleteTasks);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All tasks, sessions, and patterns have been removed.'),
+        ),
+      );
+      setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not clear all data: $e')),
+        );
+      }
+    }
+  }
+
+  /// Tasks → rolling 7-day sessions → Mon–Sun this week → streak/history pack → refresh providers.
+  Future<void> _seedAllDemoData() async {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final insightsProvider = Provider.of<InsightsProvider>(context, listen: false);
+    final schedulingProvider = Provider.of<SchedulingProvider>(context, listen: false);
+
+    await _seedDummyTasks();
+    if (!mounted) return;
+
+    final taskId =
+        taskProvider.tasks.isNotEmpty ? taskProvider.tasks.first.id : null;
+    final dummy = DummyDataService();
+
+    final nRolling = await dummy.seedConsecutiveDayStreak(
+      dayCount: 7,
+      taskId: taskId,
+    );
+    final nWeek = await dummy.seedEveryDayOfCurrentIsoWeek(taskId: taskId);
+    final nPack = await dummy.seedStreakTestPack(
+      consecutiveDays: 7,
+      taskId: taskId,
     );
 
-    await _firestoreService.insertSession(session);
+    if (!mounted) return;
+    await insightsProvider.loadWeeklyInsights();
+    await schedulingProvider.loadSuggestions(tasks: taskProvider.incompleteTasks);
+    if (!mounted) return;
+
+    final totalSessions = nRolling + nWeek + nPack;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Demo data ready: 5 tasks + $totalSessions sessions '
+          '($nRolling rolling · $nWeek this week · $nPack streak pack).',
+        ),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+    setState(() {});
   }
-}
 
   Future<void> _seedDummyTasks() async {
     final tasks = [

@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import '../providers/scheduling_provider.dart';
 import '../providers/task_provider.dart';
 import '../models/suggestion.dart';
-import '../services/ml_service.dart';
+import 'suggestion_detail_screen.dart';
 
 class SuggestionsScreen extends StatefulWidget {
   const SuggestionsScreen({super.key});
@@ -139,7 +139,11 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   final suggestion = provider.suggestions[index];
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildSuggestionCard(context, suggestion, provider),
+                    child: _buildSuggestionCard(
+                      context,
+                      suggestion,
+                      provider,
+                    ),
                   );
                 }),
               ],
@@ -362,101 +366,151 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (ctx) => SuggestionDetailScreen(
+                      suggestion: suggestion,
+                      allSuggestions: provider.suggestions,
+                      focusWindows: provider.focusWindows,
+                      mlSchedulingTip:
+                          provider.getMLRecommendation(suggestion.task),
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(4),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _formatSuggestionType(suggestion.type),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: suggestion.confidence > 0.7
+                                ? Colors.green.withValues(alpha: 0.2)
+                                : suggestion.confidence > 0.4
+                                    ? Colors.orange.withValues(alpha: 0.2)
+                                    : Colors.grey.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${(suggestion.confidence * 100).toInt()}%',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: suggestion.confidence > 0.7
+                                  ? Colors.green.shade700
+                                  : suggestion.confidence > 0.4
+                                      ? Colors.orange.shade700
+                                      : Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                child: Text(
-                  _formatSuggestionType(suggestion.type),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            suggestion.task.title,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          color: AppColors.textSecondary.withValues(alpha: 0.8),
+                          size: 22,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatTimeRange(
+                        suggestion.suggestedStartTime,
+                        suggestion.suggestedEndTime,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      suggestion.reason,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    if (suggestion.task.description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        suggestion.task.description,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap for completion odds & conflicts',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                 ),
               ),
-              const Spacer(),
-              // Confidence indicator
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: suggestion.confidence > 0.7 
-                      ? Colors.green.withValues(alpha: 0.2)
-                      : suggestion.confidence > 0.4
-                          ? Colors.orange.withValues(alpha: 0.2)
-                          : Colors.grey.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${(suggestion.confidence * 100).toInt()}%',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: suggestion.confidence > 0.7 
-                        ? Colors.green.shade700
-                        : suggestion.confidence > 0.4
-                            ? Colors.orange.shade700
-                            : Colors.grey.shade700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            suggestion.task.title,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            _formatTimeRange(
-              suggestion.suggestedStartTime,
-              suggestion.suggestedEndTime,
-            ),
-            style: const TextStyle(
-              fontSize: 13,
-              fontStyle: FontStyle.italic,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            suggestion.reason,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          if (suggestion.task.description.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              suggestion.task.description,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
               Expanded(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -501,7 +555,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   child: const Text('Dismiss'),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
