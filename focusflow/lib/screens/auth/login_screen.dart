@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-import '../../theme/app_theme.dart';
 import 'signup_screen.dart';
 import '../../main.dart';
+import '../../widgets/app_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,7 +12,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -25,22 +24,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
-
     try {
-      // Mock login attempt
       await AuthService().signIn(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logged in successfully!')),
-        );
-        
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const MainScaffold()),
@@ -53,227 +43,169 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleGuestLogin() async {
-    setState(() => _isLoading = true);
-
-    try {
-      await AuthService().signInAnonymously();
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainScaffold()),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Guest sign-in failed: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScaffold()),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Sign In'),
-        backgroundColor: AppColors.background,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
-        foregroundColor: AppColors.textPrimary,
+        foregroundColor: colorScheme.onSurface,
       ),
-      backgroundColor: AppColors.background,
-      body: Center(
+      body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Logo or Icon placeholder
-                const Icon(
-                  Icons.lock_outline,
-                  size: 64,
-                  color: AppColors.primary,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 20),
+              const Center(
+                child: AppLogo(size: 100),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'FocusFlow',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
                 ),
-                const SizedBox(height: 32),
-
-                // Email Input
-                TextFormField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Enter a valid email';
-                    }
-                    return null;
-                  },
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Adaptive Productivity',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
-                const SizedBox(height: 16),
-
-                // Password Input
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
-                const SizedBox(height: 24),
-
-                // Login Button
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textOnPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 24),
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _handleLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
+                      child: const Text('Login'),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Log In',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+              const SizedBox(height: 16),
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('OR'),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () async {
+                  try {
+                    await AuthService().signInWithGoogle();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Google Sign-In successful!')),
+                      );
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context, true);
+                      } else {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MainScaffold()),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Google Sign-In failed: $e')),
+                      );
+                    }
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  foregroundColor: colorScheme.onSurface,
+                  side: BorderSide(color: theme.dividerColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                const SizedBox(height: 12),
-
-                SizedBox(
-                  height: 50,
-                  child: OutlinedButton(
-                    onPressed: _isLoading ? null : _handleGuestLogin,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.divider),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Continue as Guest',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                
-                // Divider
-                Row(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Expanded(child: Divider(color: Colors.grey.shade400)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('OR', style: TextStyle(color: Colors.grey.shade600)),
+                    Image.network(
+                      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_\"G\"_logo.svg/1200px-Google_\"G\"_logo.svg.png',
+                      height: 24,
                     ),
-                    Expanded(child: Divider(color: Colors.grey.shade400)),
+                    const SizedBox(width: 12),
+                    const Text('Sign in with Google'),
                   ],
                 ),
-                const SizedBox(height: 16),
-                
-                // Google Sign In
-                SizedBox(
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: _isLoading
-                        ? null
-                        : () async {
-                            setState(() => _isLoading = true);
-                            try {
-                              await AuthService().signInWithGoogle();
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Google Sign-In successful!')),
-                                );
-                                if (Navigator.canPop(context)) {
-                                  Navigator.pop(context, true);
-                                } else {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const MainScaffold()),
-                                  );
-                                }
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Google Sign-In failed: $e')),
-                                );
-                              }
-                            } finally {
-                              if (mounted) setState(() => _isLoading = false);
-                            }
-                          },
-                    icon: const Icon(Icons.g_mobiledata, size: 28), // Placeholder icon
-                    label: const Text('Sign in with Google'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: Colors.grey),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _handleGuestLogin,
+                child: Text(
+                  'Continue as Guest (Offline)',
+                  style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
                 ),
-                const SizedBox(height: 16),
-
-                // Sign Up Link
-                TextButton(
-                  onPressed: () {
-                    // Navigate to Sign Up screen
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SignUpScreen()),
-                    );
-                  },
-                  child: const Text("Don't have an account? Sign Up"),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                  );
+                },
+                child: const Text("Don't have an account? Sign Up"),
+              ),
+            ],
           ),
         ),
       ),

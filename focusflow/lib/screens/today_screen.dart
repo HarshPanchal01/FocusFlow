@@ -7,14 +7,8 @@ import '../providers/task_provider.dart';
 import '../providers/timer_provider.dart';
 import '../services/data_sync_service.dart';
 import 'add_task_screen.dart';
-import '../theme/app_theme.dart';
 
 /// TODAY screen/the main hub.
-/// Layout kinda mirrors the Figma mockup:
-///   1. Daily Focus Time banner placeholder for Issue #3
-///   2. "Tasks" header + "+ New task" row
-///   3. Task list grouped by priority High → Medium → Low
-///   4. Collapsible completed section
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
 
@@ -23,17 +17,14 @@ class TodayScreen extends StatefulWidget {
 }
 
 class _TodayScreenState extends State<TodayScreen> {
-  // Keep track of whether the completed section is expanded
   bool _showCompleted = false;
 
   @override
   void initState() {
     super.initState();
-    // Load all tasks when the screen first appears
     Future.microtask(() => context.read<TaskProvider>().loadTasks());
   }
 
-  // Go to the screen to create a new task
   void _openAddTask() {
     Navigator.push(
       context,
@@ -41,7 +32,6 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  // Go to the screen to edit an existing task
   void _openEditTask(Task task) {
     Navigator.push(
       context,
@@ -51,41 +41,36 @@ class _TodayScreenState extends State<TodayScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Consumer<TaskProvider>(
       builder: (context, provider, _) {
-        // Show loading spinner while fetching tasks
         if (provider.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Get tasks grouped by priority level
         final tasksByPriority = provider.tasksByPriority;
-        // Get all the completed tasks
         final completed = provider.completedTasks;
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            // Daily focus time banner at the top
             _DailyFocusBanner(),
             const SizedBox(height: 20),
 
-            // Tasks header and inline new task button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Tasks',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 _NewTaskButton(onTap: _openAddTask),
               ],
             ),
             const SizedBox(height: 12),
 
-            // Show tasks separated by how urgent they are
             if (tasksByPriority[Priority.high]!.isNotEmpty)
               _PrioritySection(
                 label: 'High Priority',
@@ -116,21 +101,17 @@ class _TodayScreenState extends State<TodayScreen> {
                 onDelete: (task) => _confirmDelete(context, provider, task),
               ),
 
-            // Hint text if there are no tasks
             if (provider.tasks.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Center(
                   child: Text(
                     'Tap "+ New task" above to get started',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                    style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
                   ),
                 ),
               ),
 
-            // Show finished tasks can collapse or expand
             if (completed.isNotEmpty) ...[
               const Divider(height: 32),
               InkWell(
@@ -139,24 +120,19 @@ class _TodayScreenState extends State<TodayScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     children: [
-                      // Show arrow that points down when expanded, right when collapsed
                       Icon(
                         _showCompleted
                             ? Icons.keyboard_arrow_down
                             : Icons.keyboard_arrow_right,
                         size: 20,
-                        color: Colors.grey,
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 4),
-                      // Show count of completed tasks
                       Text(
                         'Completed (${completed.length})',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.titleSmall?.copyWith(color: Colors.grey),
+                        style: theme.textTheme.titleSmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
                       ),
                       const Spacer(),
-                      // Only show the clear button when section is expanded
                       if (_showCompleted)
                         TextButton(
                           onPressed: () =>
@@ -186,7 +162,6 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  // Show a popup to confirm deletion before removing
   Future<void> _confirmDelete(
     BuildContext context,
     TaskProvider provider,
@@ -196,7 +171,6 @@ class _TodayScreenState extends State<TodayScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Task'),
-        // Show which task is being deleted
         content: Text('Delete "${task.title}"? This cannot be undone.'),
         actions: [
           TextButton(
@@ -211,10 +185,8 @@ class _TodayScreenState extends State<TodayScreen> {
       ),
     );
     if (confirmed == true) {
-      // Delete the task from the database
       await provider.deleteTask(task.id!);
       if (context.mounted) {
-        // Show a message confirming the deletion
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('"${task.title}" deleted')));
@@ -222,7 +194,6 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
-  // Show popup to confirm clearing all completed tasks
   Future<void> _confirmClearCompleted(
     BuildContext context,
     TaskProvider provider,
@@ -241,25 +212,17 @@ class _TodayScreenState extends State<TodayScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            // Red text to indicate this is a destructive action
             child: const Text('Clear', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
     if (confirmed == true) {
-      // Remove all the completed tasks from the database
       await provider.clearCompleted();
     }
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// Subwidgets — skeleton for UI to restyle later
-// ══════════════════════════════════════════════════════════════
-
-/// Shows the daily focus time banner at the top.
-/// Reads today's completed sessions from the database and shows real progress.
 class _DailyFocusBanner extends StatefulWidget {
   @override
   State<_DailyFocusBanner> createState() => _DailyFocusBannerState();
@@ -267,7 +230,7 @@ class _DailyFocusBanner extends StatefulWidget {
 
 class _DailyFocusBannerState extends State<_DailyFocusBanner> {
   double _todayMinutes = 0;
-  static const double _targetMinutes = 240; // 4 hour daily goal
+  static const double _targetMinutes = 240;
 
   @override
   void initState() {
@@ -275,11 +238,9 @@ class _DailyFocusBannerState extends State<_DailyFocusBanner> {
     _loadTodayFocusTime();
   }
 
-  // Query SQLite for all sessions that started today and add up their durations
   Future<void> _loadTodayFocusTime() async {
     try {
       final now = DateTime.now();
-      // Start of today (midnight) to end of today (11:59 PM)
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
@@ -287,7 +248,7 @@ class _DailyFocusBannerState extends State<_DailyFocusBanner> {
 
       double totalMinutes = 0;
       for (final session in sessions) {
-        totalMinutes += session.duration / 60.0; // duration is in seconds
+        totalMinutes += session.duration / 60.0;
       }
 
       if (mounted) {
@@ -300,6 +261,8 @@ class _DailyFocusBannerState extends State<_DailyFocusBanner> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final hoursCompleted = (_todayMinutes / 60).toStringAsFixed(1);
     final targetHours = (_targetMinutes / 60).toStringAsFixed(0);
     final remaining = ((_targetMinutes - _todayMinutes) / 60).clamp(0, _targetMinutes / 60).toStringAsFixed(1);
@@ -308,7 +271,7 @@ class _DailyFocusBannerState extends State<_DailyFocusBanner> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
+        color: colorScheme.primary,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
@@ -324,26 +287,25 @@ class _DailyFocusBannerState extends State<_DailyFocusBanner> {
         children: [
           Text(
             'Daily Focus Time',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimary,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: colorScheme.onPrimary,
             ),
           ),
           const SizedBox(height: 12),
-          // Progress bar showing actual focus time vs target
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 12,
-              backgroundColor: Colors.white30,
-              color: Colors.white,
+              backgroundColor: colorScheme.onPrimary.withValues(alpha: 0.3),
+              color: colorScheme.onPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             '$hoursCompleted hrs done  •  $remaining hrs remaining  •  Target: $targetHours hrs',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimary,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onPrimary,
             ),
           ),
         ],
@@ -352,13 +314,15 @@ class _DailyFocusBannerState extends State<_DailyFocusBanner> {
   }
 }
 
-/// Button to create a new task.
 class _NewTaskButton extends StatelessWidget {
   final VoidCallback onTap;
   const _NewTaskButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       decoration: const BoxDecoration(
         boxShadow: [
@@ -372,15 +336,15 @@ class _NewTaskButton extends StatelessWidget {
       ),
       child: TextButton.icon(
         onPressed: onTap,
-        icon: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+        icon: Icon(Icons.add, color: colorScheme.onPrimary),
         label: Text(
           'New task',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onPrimary,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: colorScheme.onPrimary,
           ),
         ),
         style: TextButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor: colorScheme.primary,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           minimumSize: const Size(0, 40),
@@ -391,7 +355,6 @@ class _NewTaskButton extends StatelessWidget {
   }
 }
 
-/// Shows all tasks for one priority level (high, medium, or low).
 class _PrioritySection extends StatelessWidget {
   final String label;
   final Color color;
@@ -411,6 +374,9 @@ class _PrioritySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -418,21 +384,17 @@ class _PrioritySection extends StatelessWidget {
           padding: const EdgeInsets.only(top: 12, bottom: 4),
           child: Row(
             children: [
-              // Priority level label
               Text(
                 label,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                style: theme.textTheme.titleSmall?.copyWith(
                   color: color,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(width: 8),
-              // Show how many tasks are in this priority level
               Text(
                 '${tasks.length} ${tasks.length == 1 ? "task" : "tasks"}',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
               ),
             ],
           ),
@@ -450,7 +412,6 @@ class _PrioritySection extends StatelessWidget {
   }
 }
 
-/// One task row with checkbox, title, due date, and delete.
 class _TaskTile extends StatelessWidget {
   final Task task;
   final VoidCallback onTap;
@@ -466,11 +427,13 @@ class _TaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isOverdue =
         task.dueDate != null &&
         task.dueDate!.isBefore(DateTime.now()) &&
         !task.isCompleted;
-    // Check if the task is late
+
     return Dismissible(
       key: ValueKey(task.id),
       direction: DismissDirection.horizontal,
@@ -497,8 +460,8 @@ class _TaskTile extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 2),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: Theme.of(context).colorScheme.primary),
+          color: colorScheme.surface,
+          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.5)),
           borderRadius: BorderRadius.circular(8),
           boxShadow: const [
             BoxShadow(
@@ -517,7 +480,7 @@ class _TaskTile extends StatelessWidget {
           leading: Checkbox(
             value: task.isCompleted,
             onChanged: (_) => onToggle(),
-            activeColor: AppColors.primary,
+            activeColor: colorScheme.primary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
@@ -526,12 +489,11 @@ class _TaskTile extends StatelessWidget {
             task.title,
             style: TextStyle(
               decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-              color: task.isCompleted ? Colors.grey : AppColors.textPrimary,
+              color: task.isCompleted ? Colors.grey : colorScheme.onSurface,
             ),
           ),
           subtitle: Row(
             children: [
-              // Show the due date if it's set, as a pill badge
               if (task.dueDate != null) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -539,10 +501,10 @@ class _TaskTile extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
+                    color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isOverdue ? Colors.red : Colors.grey.shade300,
+                      color: isOverdue ? Colors.red : colorScheme.onSurface.withValues(alpha: 0.12),
                     ),
                     boxShadow: const [
                       BoxShadow(
@@ -555,14 +517,13 @@ class _TaskTile extends StatelessWidget {
                   ),
                   child: Text(
                     _formatDueLabel(task.dueDate!),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: isOverdue ? Colors.red : Colors.black,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isOverdue ? Colors.red : colorScheme.onSurface,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
               ],
-              // Show the category badge if it's not generic
               if (task.category != 'General') ...[
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -570,9 +531,9 @@ class _TaskTile extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
+                    color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: colorScheme.onSurface.withValues(alpha: 0.12)),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x22000000),
@@ -584,9 +545,7 @@ class _TaskTile extends StatelessWidget {
                   ),
                   child: Text(
                     task.category,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: Colors.black),
+                    style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -595,9 +554,7 @@ class _TaskTile extends StatelessWidget {
           ),
           trailing: Text(
             '${task.durationMinutes} min',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+            style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
           ),
           onTap: onTap,
           onLongPress: () {
@@ -615,10 +572,8 @@ class _TaskTile extends StatelessWidget {
                       title: const Text('Start Focus Session'),
                       onTap: () {
                         Navigator.pop(ctx);
-                        // Access TimerProvider and set task, then navigate to Focus screen
                         final timerProvider = context.read<TimerProvider>();
                         timerProvider.selectTask(task);
-                        // The user will swipe to Focus view manually, or we can use a callback to navigate
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Task "${task.title}" selected for Focus')),
                         );
@@ -658,32 +613,24 @@ class _TaskTile extends StatelessWidget {
     );
   }
 
-  /// Format the due date as a friendly label like "Due today" or "Overdue".
   String _formatDueLabel(DateTime due) {
     final now = DateTime.now();
-    // How much time until the due date
     final diff = due.difference(now);
 
     if (diff.isNegative) {
-      // The due date has already passed
       return 'Overdue';
     } else if (diff.inHours < 1) {
-      // Due very soon
       return 'Due in ${diff.inMinutes} min';
     } else if (diff.inHours < 24) {
-      // Due later today
       return 'Due in ${diff.inHours} hrs';
     } else if (diff.inDays == 0 ||
         (due.day == now.day &&
             due.month == now.month &&
             due.year == now.year)) {
-      // It's today
       return 'Due today';
     } else if (diff.inDays == 1) {
-      // Tomorrow
       return 'Tomorrow';
     } else {
-      // Show the date
       return 'Due ${DateFormat.MMMd().format(due)}';
     }
   }
