@@ -1,6 +1,5 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../models/session.dart';
 import '../models/focus_pattern.dart';
@@ -196,21 +195,24 @@ class DatabaseService {
     );
   }
 
+  /// Loads sessions and filters by [DateTime] in Dart.
+  ///
+  /// SQLite `TEXT` comparison on ISO-8601 strings is unreliable when mixes of
+  /// UTC (`...Z`) and local (no offset) exist — rows can be wrongly excluded.
   Future<List<Session>> getSessionsForRange(DateTime start, DateTime end) async {
     final db = await database;
-    final maps = await db.query(
-      'sessions',
-      where: 'startTime >= ? AND startTime <= ?',
-      whereArgs: [start.toIso8601String(), end.toIso8601String()],
-      orderBy: 'startTime ASC',
-    );
-    return maps.map((map) {
+    final maps = await db.query('sessions', orderBy: 'startTime ASC');
+    final sessions = maps.map((map) {
       final fixedMap = Map<String, dynamic>.from(map);
       if (fixedMap['isCompleted'] is int) {
         fixedMap['isCompleted'] = (fixedMap['isCompleted'] as int) == 1;
       }
       return Session.fromMap(fixedMap, id: map['id'] as String?);
+    }).where((s) {
+      final t = s.startTime;
+      return !t.isBefore(start) && !t.isAfter(end);
     }).toList();
+    return sessions;
   }
 
   /// Replace all local sessions with Firestore data (sync)
@@ -303,6 +305,16 @@ class DatabaseService {
           'createdAt': p.createdAt.toIso8601String(),
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
+    });
+  }
+
+  /// Removes every row from tasks, sessions, and focus_patterns (local cache only).
+  Future<void> clearAllTables() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('tasks');
+      await txn.delete('sessions');
+      await txn.delete('focus_patterns');
     });
   }
 

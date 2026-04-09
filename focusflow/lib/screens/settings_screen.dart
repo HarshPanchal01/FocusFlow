@@ -5,6 +5,11 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../providers/theme_provider.dart';
+import '../providers/task_provider.dart';
+import '../providers/insights_provider.dart';
+import '../providers/scheduling_provider.dart';
+import '../services/data_sync_service.dart';
+import '../services/dummy_data_service.dart';
 import 'auth/login_screen.dart';
 import '../services/firestore_service.dart';
 import '../models/task.dart';
@@ -84,42 +89,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // DUMMY DATA SEEDING
-  // ════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
 
   Future<void> _seedDummyTasks() async {
-    final List<Task> dummyTasks = [
+    final tasks = [
       Task(
-        title: 'Project Proposal',
-        description: 'Complete the draft for the new project',
+        title: 'Finish project report',
+        description: 'Complete the final Firebase migration write-up',
         priority: Priority.high,
         durationMinutes: 60,
-        category: 'Work',
-        dueDate: DateTime.now().add(const Duration(days: 1)),
-      ),
-      Task(
-        title: 'Grocery Shopping',
-        description: 'Buy milk, eggs, and bread',
-        priority: Priority.medium,
-        durationMinutes: 30,
-        category: 'Personal',
-        dueDate: DateTime.now().add(const Duration(hours: 5)),
-      ),
-      Task(
-        title: 'Library Study',
-        description: 'Study for the mobile dev quiz',
-        priority: Priority.high,
-        durationMinutes: 120,
         category: 'Coursework',
-        dueDate: DateTime.now().add(const Duration(days: 2)),
-      ),
-      Task(
-        title: 'Update Portfolio',
-        description: 'Add recent Flutter projects to my site',
-        priority: Priority.low,
-        durationMinutes: 45,
-        category: 'Personal',
+        dueDate: DateTime.now().add(const Duration(days: 1)),
       ),
       Task(
         title: 'Review lecture notes',
@@ -127,12 +109,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         priority: Priority.medium,
         durationMinutes: 45,
         category: 'Coursework',
+        dueDate: DateTime.now().add(const Duration(days: 2)),
+      ),
+      Task(
+        title: 'Workout',
+        description: '30-minute session',
+        priority: Priority.low,
+        durationMinutes: 30,
+        category: 'Health',
+        dueDate: DateTime.now().add(const Duration(days: 1)),
+      ),
+      Task(
+        title: 'Buy groceries',
+        description: 'Milk, eggs, bread, fruit',
+        priority: Priority.medium,
+        durationMinutes: 20,
+        category: 'Personal',
         dueDate: DateTime.now().add(const Duration(days: 3)),
+      ),
+      Task(
+        title: 'Prepare presentation',
+        description: 'Practice demo for FocusFlow',
+        priority: Priority.high,
+        durationMinutes: 90,
+        category: 'Coursework',
+        dueDate: DateTime.now().add(const Duration(hours: 12)),
       ),
     ];
 
-    for (final task in dummyTasks) {
+    for (final task in tasks) {
       await _firestoreService.insertTask(task);
+    }
+
+    if (mounted) {
+      await Provider.of<TaskProvider>(context, listen: false).loadTasks();
+      setState(() {});
     }
   }
 
@@ -426,6 +437,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: const Icon(Icons.history),
                     label: const Text('Seed Dummy Sessions'),
                   ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                    ),
+                    onPressed: _seedAllDemoData,
+                    icon: const Icon(Icons.auto_fix_high),
+                    label: const Text('Seed all demo data'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Adds sample tasks, rolling sessions, this week chart data, and streak pack. '
+                    'Refreshes insights and suggestions.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
                   const Divider(height: 32),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
@@ -435,7 +464,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onPressed: () async {
                       await NotificationService().showNotification(
                         title: 'Test Notification',
-                        body: 'If you see this, notifications are working! 🎉',
+                        body: 'If you see this, notifications are working!',
                       );
                     },
                     icon: const Icon(Icons.notifications_active),
@@ -444,7 +473,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            Text('Data reset', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colorScheme.error,
+                side: BorderSide(color: colorScheme.error),
+              ),
+              onPressed: _confirmAndClearAllData,
+              icon: const Icon(Icons.delete_forever_outlined),
+              label: const Text('Clear all app data'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Removes tasks, sessions, and focus patterns locally and in the cloud when online.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 24),
 
             // Sign Out Button
             if (_auth.currentUser != null && !_auth.currentUser!.isAnonymous) ...[
@@ -484,6 +532,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _handleSignOut() async {
     await _auth.signOut();
+    setState(() {});
+  }
+
+  Future<void> _confirmAndClearAllData() async {
+    final colorScheme = Theme.of(context).colorScheme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear all app data?'),
+        content: const Text(
+          'This deletes every task, focus session, and saved focus pattern '
+          'from this device and from your cloud backup (when online). '
+          'Notification reminders tied to tasks will be cancelled.\n\n'
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+            child: const Text('Clear everything'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final insightsProvider = Provider.of<InsightsProvider>(context, listen: false);
+    final schedulingProvider = Provider.of<SchedulingProvider>(context, listen: false);
+
+    try {
+      await DataSyncService().clearAllData();
+      await NotificationService().cancelAllNotifications();
+      if (!mounted) return;
+      await taskProvider.loadTasks();
+      await insightsProvider.loadWeeklyInsights();
+      await schedulingProvider.loadSuggestions(tasks: taskProvider.incompleteTasks);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All tasks, sessions, and patterns have been removed.'),
+        ),
+      );
+      setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not clear all data: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _seedAllDemoData() async {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final insightsProvider = Provider.of<InsightsProvider>(context, listen: false);
+    final schedulingProvider = Provider.of<SchedulingProvider>(context, listen: false);
+
+    await _seedDummyTasks();
+    if (!mounted) return;
+
+    final taskId =
+        taskProvider.tasks.isNotEmpty ? taskProvider.tasks.first.id : null;
+    final dummy = DummyDataService();
+
+    final nRolling = await dummy.seedConsecutiveDayStreak(
+      dayCount: 7,
+      taskId: taskId,
+    );
+    final nWeek = await dummy.seedEveryDayOfCurrentIsoWeek(taskId: taskId);
+    final nPack = await dummy.seedStreakTestPack(
+      consecutiveDays: 7,
+      taskId: taskId,
+    );
+
+    if (!mounted) return;
+    await insightsProvider.loadWeeklyInsights();
+    await schedulingProvider.loadSuggestions(tasks: taskProvider.incompleteTasks);
+    if (!mounted) return;
+
+    final totalSessions = nRolling + nWeek + nPack;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Demo data ready: 5 tasks + $totalSessions sessions '
+          '($nRolling rolling · $nWeek this week · $nPack streak pack).',
+        ),
+        duration: const Duration(seconds: 6),
+      ),
+    );
     setState(() {});
   }
 

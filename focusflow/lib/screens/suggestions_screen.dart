@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/scheduling_provider.dart';
 import '../providers/task_provider.dart';
 import '../models/suggestion.dart';
+import 'suggestion_detail_screen.dart';
 
 class SuggestionsScreen extends StatefulWidget {
   const SuggestionsScreen({super.key});
@@ -65,16 +66,15 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         ? '$hours ${hours == 1 ? 'hr' : 'hrs'}'
         : '$minutes min';
     
-    return '$durationStr · $dateStr $timeStr';
+    return '$durationStr ? $dateStr $timeStr';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         backgroundColor: colorScheme.primary,
         elevation: 0,
@@ -87,6 +87,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
           }
 
           if (provider.suggestions.isEmpty) {
+            final muted = colorScheme.onSurface.withValues(alpha: 0.65);
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -94,21 +95,24 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   Icon(
                     Icons.lightbulb_outline,
                     size: 64,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: muted,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'No suggestions available',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: muted,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Complete some focus sessions to get personalized scheduling suggestions',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      'Complete some focus sessions to get personalized scheduling suggestions',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: muted,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -140,7 +144,11 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   final suggestion = provider.suggestions[index];
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildSuggestionCard(context, suggestion, provider),
+                    child: _buildSuggestionCard(
+                      context,
+                      suggestion,
+                      provider,
+                    ),
                   );
                 }),
               ],
@@ -175,12 +183,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome, color: colorScheme.onPrimary, size: 20),
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Your Focus Patterns',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colorScheme.onPrimary,
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -188,12 +196,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: colorScheme.onPrimary.withValues(alpha: 0.2),
+                  color: Colors.white24,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${provider.totalPatterns} sessions analyzed',
-                  style: TextStyle(fontSize: 10, color: colorScheme.onPrimary.withValues(alpha: 0.7)),
+                  style: const TextStyle(fontSize: 10, color: Colors.white70),
                 ),
               ),
             ],
@@ -222,30 +230,30 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: colorScheme.onPrimary.withValues(alpha: 0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(icon, color: colorScheme.onPrimary, size: 18),
+                    Icon(icon, color: Colors.white, size: 18),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '$qualityLabel — $hourStr',
-                            style: TextStyle(
-                              color: colorScheme.onPrimary,
+                            '$qualityLabel ? $hourStr',
+                            style: const TextStyle(
+                              color: Colors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
                             ),
                           ),
                           Text(
-                            '$daysStr • ${window.sessionCount} sessions • '
+                            '$daysStr ? ${window.sessionCount} sessions ? '
                             '${window.avgDurationMinutes.round()} min avg',
-                            style: TextStyle(
-                              color: colorScheme.onPrimary.withValues(alpha: 0.7),
+                            style: const TextStyle(
+                              color: Colors.white70,
                               fontSize: 11,
                             ),
                           ),
@@ -256,13 +264,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: colorScheme.onPrimary.withValues(alpha: 0.24),
+                        color: Colors.white24,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         '${(window.avgFocusScore * 100).toInt()}%',
-                        style: TextStyle(
-                          color: colorScheme.onPrimary,
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
@@ -286,9 +294,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),
@@ -319,7 +327,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   'Complete $sessionsNeeded more focus session${sessionsNeeded == 1 ? '' : 's'} '
                   'with a rating to unlock ML-powered scheduling.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: colorScheme.onSurface.withValues(alpha: 0.75),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -329,7 +337,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   child: LinearProgressIndicator(
                     value: provider.totalPatterns / 3.0,
                     minHeight: 6,
-                    backgroundColor: theme.dividerColor,
+                    backgroundColor: colorScheme.surfaceContainerHigh,
                     color: colorScheme.primary,
                   ),
                 ),
@@ -353,13 +361,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     Suggestion suggestion,
     SchedulingProvider provider,
   ) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),
@@ -369,101 +377,152 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (ctx) => SuggestionDetailScreen(
+                      suggestion: suggestion,
+                      allSuggestions: provider.suggestions,
+                      focusWindows: provider.focusWindows,
+                      mlSchedulingTip:
+                          provider.getMLRecommendation(suggestion.task),
                     ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.secondary.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(4),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _formatSuggestionType(suggestion.type),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: suggestion.confidence > 0.7
+                                ? Colors.green.withValues(alpha: 0.2)
+                                : suggestion.confidence > 0.4
+                                    ? Colors.orange.withValues(alpha: 0.2)
+                                    : Colors.grey.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${(suggestion.confidence * 100).toInt()}%',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: suggestion.confidence > 0.7
+                                  ? Colors.green.shade400
+                                  : suggestion.confidence > 0.4
+                                      ? Colors.orange.shade400
+                                      : colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                child: Text(
-                  _formatSuggestionType(suggestion.type),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: colorScheme.onSecondary,
-                  ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            suggestion.task.title,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          color: colorScheme.onSurface.withValues(alpha: 0.45),
+                          size: 22,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatTimeRange(
+                        suggestion.suggestedStartTime,
+                        suggestion.suggestedEndTime,
+                      ),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      suggestion.reason,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colorScheme.onSurface.withValues(alpha: 0.75),
+                      ),
+                    ),
+                    if (suggestion.task.description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        suggestion.task.description,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colorScheme.onSurface.withValues(alpha: 0.65),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap for completion odds & conflicts',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                 ),
               ),
-              const Spacer(),
-              // Confidence indicator
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: suggestion.confidence > 0.7 
-                      ? Colors.green.withValues(alpha: 0.2)
-                      : suggestion.confidence > 0.4
-                          ? Colors.orange.withValues(alpha: 0.2)
-                          : Colors.grey.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${(suggestion.confidence * 100).toInt()}%',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: suggestion.confidence > 0.7 
-                        ? Colors.green.shade700
-                        : suggestion.confidence > 0.4
-                            ? Colors.orange.shade700
-                            : Colors.grey.shade700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            suggestion.task.title,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            _formatTimeRange(
-              suggestion.suggestedStartTime,
-              suggestion.suggestedEndTime,
-            ),
-            style: TextStyle(
-              fontSize: 13,
-              fontStyle: FontStyle.italic,
-              color: colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            suggestion.reason,
-            style: TextStyle(
-              fontSize: 14,
-              color: colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
-          ),
-          if (suggestion.task.description.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              suggestion.task.description,
-              style: TextStyle(
-                fontSize: 13,
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
               Expanded(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -491,7 +550,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: colorScheme.onSurface,
                     side: BorderSide(
-                      color: colorScheme.secondary,
+                      color: colorScheme.outline,
                       width: 1.5,
                     ),
                     shape: RoundedRectangleBorder(
@@ -508,7 +567,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   child: const Text('Dismiss'),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

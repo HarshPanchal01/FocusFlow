@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import '../models/task.dart';
 import '../models/session.dart';
 import '../services/data_sync_service.dart';
 import '../services/ml_service.dart';
 import '../services/notification_service.dart';
 import '../services/device_orientation_service.dart';
+import '../services/phone_activity_service.dart';
 
 /// TimerProvider manages focus session state and lifecycle.
 ///
@@ -24,6 +26,7 @@ class TimerProvider extends ChangeNotifier {
   final DataSyncService _dbService = DataSyncService();
   final MLService _mlService = MLService();
   final DeviceOrientationService _orientationService = DeviceOrientationService();
+  final PhoneActivityService _phoneActivity = PhoneActivityService.instance;
 
   // Timer state
   Timer? _timer;
@@ -87,6 +90,12 @@ class TimerProvider extends ChangeNotifier {
 
   DateTime? _lastAutoInterruptionTime;
 
+  /// When the screen was turned off (Android), used to avoid double-counting
+  /// "Switched away" right after [screen_off].
+  DateTime? _lastScreenOffAt;
+
+  Timer? _inactiveDebounce;
+
   /// Select a task and auto-set timer to its estimated duration.
   void selectTask(Task? task) {
     if (_isSessionActive) return;
@@ -113,14 +122,20 @@ class TimerProvider extends ChangeNotifier {
   // SESSION LIFECYCLE
   // ════════════════════════════════════════════════════════════
 
-  void startTimer() {
+  /// Starts the countdown. Use [resume] only from [resumeTimer] so cooldown /
+  /// screen-off debounce state is not cleared mid-session.
+  void startTimer({bool resume = false}) {
     if (_totalSeconds <= 0) return;
 
     _isRunning = true;
     _isSessionActive = true;
-    
+
     _orientationService.startMonitoring();
-    _lastAutoInterruptionTime = null;
+    if (!resume) {
+      _lastAutoInterruptionTime = null;
+      _lastScreenOffAt = null;
+    }
+    _phoneActivity.start(_onPhoneActivityEvent);
     notifyListeners();
 
     _timer?.cancel();
@@ -138,13 +153,14 @@ class TimerProvider extends ChangeNotifier {
     _isRunning = false;
     _timer?.cancel();
     _orientationService.stopMonitoring();
+    _phoneActivity.stop();
+    _cancelInactiveDebounce();
     notifyListeners();
   }
 
   void resumeTimer() {
     if (!_isSessionActive || _secondsLeft <= 0) return;
-    _orientationService.startMonitoring();
-    startTimer();
+    startTimer(resume: true);
   }
 
   /// Stop session early — still saves data and asks for rating.
@@ -168,6 +184,8 @@ class TimerProvider extends ChangeNotifier {
     _isRunning = false;
     _isSessionActive = false;
     _orientationService.stopMonitoring();
+    _phoneActivity.stop();
+    _cancelInactiveDebounce();
 
     // Create the session but don't save yet — wait for rating
     _pendingSession = Session(
@@ -243,7 +261,7 @@ class TimerProvider extends ChangeNotifier {
   void logInterruption(String type) {
     if (!_isSessionActive) return;
 
-    if (type == 'Picked Up Phone (Auto-Detected)') {
+    if (type == 'Picked Up Phone (Auto-Detected)' || _isAutoDetectedType(type)) {
       _lastAutoInterruptionTime = DateTime.now();
     }
 
@@ -255,9 +273,78 @@ class TimerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// App / phone lifecycle while a focus session is running (from [WidgetsBindingObserver]).
+  void handleAppLifecycle(AppLifecycleState state) {
+    if (!_isSessionActive || !_isRunning) return;
+
+    switch (state) {
+      case AppLifecycleState.inactive:
+        _inactiveDebounce?.cancel();
+        _inactiveDebounce = Timer(const Duration(milliseconds: 450), () {
+          if (!_isSessionActive || !_isRunning) return;
+          logInterruption(
+            'App not focused (notifications, quick settings, or system)',
+          );
+        });
+        break;
+      case AppLifecycleState.paused:
+        _inactiveDebounce?.cancel();
+        _inactiveDebounce = null;
+        if (_shouldLogSwitchedAwayFromApp()) {
+          logInterruption('Switched away from app');
+        }
+        break;
+      case AppLifecycleState.resumed:
+        _inactiveDebounce?.cancel();
+        _inactiveDebounce = null;
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _onPhoneActivityEvent(String event) {
+    if (!_isSessionActive || !_isRunning) return;
+
+    switch (event) {
+      case 'screen_off':
+        _lastScreenOffAt = DateTime.now();
+        _cancelInactiveDebounce();
+        logInterruption('Screen turned off');
+        break;
+      case 'screen_on':
+      case 'user_present':
+        break;
+    }
+  }
+
+  bool _shouldLogSwitchedAwayFromApp() {
+    if (_lastScreenOffAt == null) return true;
+    final dt = DateTime.now().difference(_lastScreenOffAt!);
+    return dt >= const Duration(seconds: 2);
+  }
+
+  void _cancelInactiveDebounce() {
+    _inactiveDebounce?.cancel();
+    _inactiveDebounce = null;
+  }
+
+  bool _isAutoDetectedType(String type) {
+    switch (type) {
+      case 'Screen turned off':
+      case 'Switched away from app':
+      case 'App not focused (notifications, quick settings, or system)':
+        return true;
+      default:
+        return false;
+    }
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
+    _cancelInactiveDebounce();
+    _phoneActivity.stop();
     _orientationService.removeListener(_onOrientationChanged);
     _orientationService.dispose();
     super.dispose();

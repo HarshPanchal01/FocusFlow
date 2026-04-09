@@ -17,7 +17,6 @@ import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/settings_screen.dart';
-import 'theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 
 void main() async {
@@ -133,10 +132,12 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: const Text('FocusFlow', style: TextStyle(color: Colors.white)),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: colorScheme.primary,
       ),
       body: Column(
         children: [

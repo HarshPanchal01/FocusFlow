@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
@@ -15,6 +16,7 @@ class DeviceOrientationService extends ChangeNotifier {
   DeviceOrientationService._internal();
 
   StreamSubscription<AccelerometerEvent>? _accelSubscription;
+  StreamSubscription<UserAccelerometerEvent>? _userAccelSubscription;
   DeviceOrientationState _currentState = DeviceOrientationState.unknown;
   
   // Track previous events to calculate variance/movement
@@ -28,15 +30,30 @@ class DeviceOrientationService extends ChangeNotifier {
 
   void startMonitoring() {
     if (_accelSubscription != null) return;
-    
+
     _accelSubscription = accelerometerEventStream().listen((event) {
       _processEvent(event);
+    });
+
+    // Gravity-stripped acceleration — catches lifts and jolts even when the
+    // raw accelerometer variance is still settling.
+    _userAccelSubscription = userAccelerometerEventStream().listen((event) {
+      final m = math.sqrt(
+        event.x * event.x + event.y * event.y + event.z * event.z,
+      );
+      if (m > 8.0 && _currentState != DeviceOrientationState.held) {
+        _currentState = DeviceOrientationState.held;
+        notifyListeners();
+        debugPrint('User accel spike → held: m=$m');
+      }
     });
   }
 
   void stopMonitoring() {
     _accelSubscription?.cancel();
     _accelSubscription = null;
+    _userAccelSubscription?.cancel();
+    _userAccelSubscription = null;
     _currentState = DeviceOrientationState.unknown;
     _recentEvents.clear();
     notifyListeners();

@@ -169,22 +169,44 @@ class DataSyncService {
   }
 
   Future<List<Session>> getSessionsForRange(DateTime start, DateTime end) async {
+    List<Session> local = [];
     try {
-      final local = await _localDb.getSessionsForRange(start, end);
-      if (local.isNotEmpty) return local;
+      local = await _localDb.getSessionsForRange(start, end);
     } catch (e) {
       debugPrint('Sync: Local session read failed — $e');
     }
 
-    if (_canReachCloud) {
-      try {
-        return await _cloudDb.getSessionsForRange(start, end);
-      } catch (e) {
-        debugPrint('Sync: Cloud session read also failed — $e');
-      }
+    if (!_canReachCloud) {
+      return local;
     }
 
-    return [];
+    try {
+      final cloud = await _cloudDb.getSessionsForRange(start, end);
+      return _mergeSessionsById(local, cloud);
+    } catch (e) {
+      debugPrint('Sync: Cloud session read failed — $e');
+      return local;
+    }
+  }
+
+  /// Union by id so insights/streaks see both offline-only and cloud sessions.
+  /// Rows without an id (should be rare) are appended so nothing is dropped.
+  List<Session> _mergeSessionsById(List<Session> local, List<Session> cloud) {
+    final byId = <String, Session>{};
+    final withoutId = <Session>[];
+    for (final s in local) {
+      if (s.id != null) {
+        byId[s.id!] = s;
+      } else {
+        withoutId.add(s);
+      }
+    }
+    for (final s in cloud) {
+      if (s.id != null) byId[s.id!] = s;
+    }
+    final out = <Session>[...byId.values, ...withoutId]
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    return out;
   }
 
   Future<List<Session>> getSessions() async {
@@ -292,6 +314,26 @@ class DataSyncService {
       }
     }
     return 0;
+  }
+
+  /// Clears **all** tasks, sessions, and focus patterns locally and (when online)
+  /// in Firestore for the signed-in user. Does not affect SharedPreferences or auth.
+  Future<void> clearAllData() async {
+    await _localDb.clearAllTables();
+    if (!_isAuthenticated) {
+      debugPrint('Sync: clearAllData — local SQLite cleared only (no user)');
+      return;
+    }
+    if (!_canReachCloud) {
+      debugPrint('Sync: clearAllData — cloud skipped (offline or no network)');
+      return;
+    }
+    try {
+      await _cloudDb.deleteAllUserData();
+      debugPrint('Sync: Firestore user data cleared');
+    } catch (e) {
+      debugPrint('Sync: Failed to clear Firestore — $e');
+    }
   }
 
   // ════════════════════════════════════════════════════════════
