@@ -1,7 +1,7 @@
 import '../models/task.dart';
 import '../models/session.dart';
 import '../models/suggestion.dart';
-import 'database_service.dart';
+import 'data_sync_service.dart';
 
 /// Service that analyzes session patterns and generates adaptive scheduling suggestions.
 /// 
@@ -11,7 +11,7 @@ import 'database_service.dart';
 /// - Identifies high-focus periods (high completion, low interruptions)
 /// - Generates suggestions based on task metadata and focus patterns
 class SchedulingService {
-  final DatabaseService _dbService = DatabaseService();
+  final DataSyncService _dbService = DataSyncService();
 
   /// Analyze sessions from the last N days to identify focus patterns
   Future<Map<String, FocusWindow>> analyzeFocusPatterns({int daysToAnalyze = 14}) async {
@@ -84,7 +84,7 @@ class SchedulingService {
   }) async {
     // Get incomplete tasks if not provided
     final incompleteTasks = tasks ?? 
-        (await _dbService.getTasks(isCompleted: false));
+      (await _dbService.getTasks()).where((t) => !t.isCompleted).toList();
     
     if (incompleteTasks.isEmpty) return [];
     

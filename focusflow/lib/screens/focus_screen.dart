@@ -14,10 +14,11 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
-  // Local state for the picker, to avoid rebuilding the provider on every scroll tick
+  // Local state for the picker
   int _pickerHours = 0;
   int _pickerMinutes = 25;
   int _pickerSeconds = 0;
+  bool _isRatingDialogShown = false;
 
   @override
   void initState() {
@@ -122,6 +123,93 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _showRatingDialog(BuildContext context, TimerProvider timer) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        int? selectedRating;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Text('How focused were you?'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Rate your focus quality for this session.',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  // 5 emoji buttons in a row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(5, (index) {
+                      final rating = index + 1;
+                      final labels = ['😵', '😕', '😐', '🙂', '🔥'];
+                      final isSelected = selectedRating == rating;
+                      return GestureDetector(
+                        onTap: () => setDialogState(() => selectedRating = rating),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary.withOpacity(0.15)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                              width: isSelected ? 2 : 1,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(labels[index], style: const TextStyle(fontSize: 22)),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  // Labels under the emojis
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('Distracted', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      Text('Deep focus', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    timer.skipRating();
+                  },
+                  child: const Text('Skip'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedRating != null
+                      ? () {
+                          Navigator.of(ctx).pop();
+                          timer.submitRating(selectedRating);
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textOnPrimary,
+                  ),
+                  child: const Text('Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showInterruptionPicker(TimerProvider timer) {
     showModalBottomSheet(
       context: context,
@@ -180,6 +268,17 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Consumer<TimerProvider>(
       builder: (context, timer, _) {
+        // Show rating dialog when session just ended
+        if (timer.isAwaitingRating && !_isRatingDialogShown) {
+          _isRatingDialogShown = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showRatingDialog(context, timer);
+          });
+        }
+        if (!timer.isAwaitingRating) {
+          _isRatingDialogShown = false;
+        }
+
         return Scaffold(
           backgroundColor: AppColors.background,
           body: SafeArea(

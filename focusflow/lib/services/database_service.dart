@@ -1,23 +1,24 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'dart:math';
+import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../models/session.dart';
+import '../models/focus_pattern.dart';
 
-/// Local SQLite database service for task CRUD.
+/// Local SQLite database service — the offline-first data layer.
 ///
-/// This is the offline-first data layer. Issue #5 (Data Sync) will
-/// add a Firestore layer on top that calls these same methods and
-/// syncs changes when connectivity is available.
+/// Schema uses TEXT IDs that match Firestore document IDs so data
+/// can sync seamlessly between local and cloud storage.
+///
+/// When offline: reads/writes go here and work instantly.
+/// When online: DataSyncService pushes changes to Firestore.
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
 
   Database? _database;
-
-  static const String _tableName = 'tasks';
-  static const int _dbVersion = 3;
+  static const int _dbVersion = 5;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -27,20 +28,20 @@ class DatabaseService {
 
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'focusflow.db');
+    final path = join(dbPath, 'focusflow_v2.db');
 
     return await openDatabase(
       path,
       version: _dbVersion,
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
+    // Tasks table — ID is TEXT to match Firestore doc IDs
     await db.execute('''
-      CREATE TABLE $_tableName (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+      CREATE TABLE tasks (
+        id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT DEFAULT '',
         priority INTEGER DEFAULT 1,
@@ -52,166 +53,147 @@ class DatabaseService {
         updatedAt TEXT NOT NULL
       )
     ''');
-    // If creating fresh (version 3), also create sessions table with all columns
-    await _createSessionsTable(db);
-  }
 
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await _createSessionsTable(db);
-    }
-    if (oldVersion < 3) {
-      try {
-        await db.execute('ALTER TABLE sessions ADD COLUMN interruptionCount INTEGER DEFAULT 0');
-      } catch (e) {
-        print('Error adding column: $e');
-      }
-    }
-  }
-
-  Future<void> _createSessionsTable(Database db) async {
+    // Sessions table — matches updated Session model with selfRating
     await db.execute('''
       CREATE TABLE sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        taskId INTEGER,
+        id TEXT PRIMARY KEY,
+        taskId TEXT,
         startTime TEXT NOT NULL,
         duration INTEGER NOT NULL,
         isCompleted INTEGER DEFAULT 0,
         interruptionCount INTEGER DEFAULT 0,
-        FOREIGN KEY(taskId) REFERENCES tasks(id)
+        selfRating INTEGER
+      )
+    ''');
+
+    // Focus patterns table — ML feature data
+    await db.execute('''
+      CREATE TABLE focus_patterns (
+        id TEXT PRIMARY KEY,
+        sessionId TEXT,
+        taskId TEXT,
+        hourOfDay INTEGER NOT NULL,
+        dayOfWeek INTEGER NOT NULL,
+        durationMinutes REAL NOT NULL,
+        completionRate REAL NOT NULL,
+        interruptionCount INTEGER DEFAULT 0,
+        selfRating INTEGER,
+        category TEXT DEFAULT 'General',
+        priority INTEGER DEFAULT 1,
+        focusScore REAL NOT NULL,
+        createdAt TEXT NOT NULL
       )
     ''');
   }
 
-  // --------------- CREATE ---------------
+  // ════════════════════════════════════════════════════════════
+  // TASKS
+  // ════════════════════════════════════════════════════════════
 
-  Future<int> insertTask(Task task) async {
+  Future<void> insertTask(Task task) async {
     final db = await database;
-    return await db.insert(
-      _tableName,
-      task.toMap(),
+    await db.insert(
+      'tasks',
+      {
+        'id': task.id,
+        'title': task.title,
+        'description': task.description,
+        'priority': task.priority.index,
+        'dueDate': task.dueDate?.toIso8601String(),
+        'durationMinutes': task.durationMinutes,
+        'category': task.category,
+        'isCompleted': task.isCompleted ? 1 : 0,
+        'createdAt': task.createdAt.toIso8601String(),
+        'updatedAt': task.updatedAt.toIso8601String(),
+      },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
-  // --------------- READ ---------------
-
-  /// Get all tasks, optionally filtered and sorted.
-  Future<List<Task>> getTasks({
-    bool? isCompleted,
-    String? category,
-    String orderBy = 'dueDate ASC',
-  }) async {
+  Future<List<Task>> getTasks() async {
     final db = await database;
-
-    // Build WHERE clause dynamically
-    final where = <String>[];
-    final whereArgs = <dynamic>[];
-
-    if (isCompleted != null) {
-      where.add('isCompleted = ?');
-      whereArgs.add(isCompleted ? 1 : 0);
-    }
-    if (category != null) {
-      where.add('category = ?');
-      whereArgs.add(category);
-    }
-
-    final maps = await db.query(
-      _tableName,
-      where: where.isNotEmpty ? where.join(' AND ') : null,
-      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
-      orderBy: orderBy,
-    );
-
-    return maps.map((map) => Task.fromMap(map)).toList();
+    final maps = await db.query('tasks', orderBy: 'priority DESC, dueDate ASC');
+    return maps.map((map) {
+      // SQLite stores booleans as 0/1, so convert before passing to fromMap
+      final fixedMap = Map<String, dynamic>.from(map);
+      if (fixedMap['isCompleted'] is int) {
+        fixedMap['isCompleted'] = (fixedMap['isCompleted'] as int) == 1;
+      }
+      return Task.fromMap(fixedMap, id: map['id'] as String?);
+    }).toList();
   }
 
-  /// Get a single task by ID.
-  Future<Task?> getTaskById(int id) async {
+  Future<void> updateTask(Task task) async {
     final db = await database;
-    final maps = await db.query(
-      _tableName,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    if (maps.isEmpty) return null;
-    return Task.fromMap(maps.first);
-  }
-
-  // --------------- UPDATE ---------------
-
-  Future<int> updateTask(Task task) async {
-    final db = await database;
-    return await db.update(
-      _tableName,
-      task.toMap(),
+    await db.update(
+      'tasks',
+      {
+        'title': task.title,
+        'description': task.description,
+        'priority': task.priority.index,
+        'dueDate': task.dueDate?.toIso8601String(),
+        'durationMinutes': task.durationMinutes,
+        'category': task.category,
+        'isCompleted': task.isCompleted ? 1 : 0,
+        'updatedAt': task.updatedAt.toIso8601String(),
+      },
       where: 'id = ?',
       whereArgs: [task.id],
     );
   }
 
-  /// Quick toggle for completion status.
-  Future<int> toggleTaskCompletion(int id, bool isCompleted) async {
+  Future<void> deleteTask(String id) async {
     final db = await database;
-    return await db.update(
-      _tableName,
-      {
-        'isCompleted': isCompleted ? 1 : 0,
-        'updatedAt': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
 
-  // --------------- DELETE ---------------
-
-  Future<int> deleteTask(int id) async {
+  Future<void> deleteCompletedTasks() async {
     final db = await database;
-    return await db.delete(
-      _tableName,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('tasks', where: 'isCompleted = ?', whereArgs: [1]);
   }
 
-  /// Delete all completed tasks (useful for a "clear completed" action).
-  Future<int> deleteCompletedTasks() async {
+  /// Replace all local tasks with data from Firestore (used during sync)
+  Future<void> replaceAllTasks(List<Task> tasks) async {
     final db = await database;
-    return await db.delete(
-      _tableName,
-      where: 'isCompleted = ?',
-      whereArgs: [1],
-    );
+    await db.transaction((txn) async {
+      await txn.delete('tasks');
+      for (final task in tasks) {
+        await txn.insert('tasks', {
+          'id': task.id,
+          'title': task.title,
+          'description': task.description,
+          'priority': task.priority.index,
+          'dueDate': task.dueDate?.toIso8601String(),
+          'durationMinutes': task.durationMinutes,
+          'category': task.category,
+          'isCompleted': task.isCompleted ? 1 : 0,
+          'createdAt': task.createdAt.toIso8601String(),
+          'updatedAt': task.updatedAt.toIso8601String(),
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
   }
 
-  // --------------- UTILITIES ---------------
+  // ════════════════════════════════════════════════════════════
+  // SESSIONS
+  // ════════════════════════════════════════════════════════════
 
-  Future<int> getTaskCount({bool? isCompleted}) async {
+  Future<void> insertSession(Session session) async {
     final db = await database;
-    final where =
-        isCompleted != null ? 'WHERE isCompleted = ${isCompleted ? 1 : 0}' : '';
-    final result =
-        await db.rawQuery('SELECT COUNT(*) as count FROM $_tableName $where');
-    return result.first['count'] as int;
-  }
-
-  // --------------- SESSIONS ---------------
-
-  Future<int> insertSession(Session session) async {
-    final db = await database;
-    return await db.insert(
+    await db.insert(
       'sessions',
-      session.toMap(),
+      {
+        'id': session.id,
+        'taskId': session.taskId,
+        'startTime': session.startTime.toIso8601String(),
+        'duration': session.duration,
+        'isCompleted': session.isCompleted ? 1 : 0,
+        'interruptionCount': session.interruptionCount,
+        'selfRating': session.selfRating,
+      },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-  }
-
-  Future<List<Session>> getSessions() async {
-    final db = await database;
-    final maps = await db.query('sessions', orderBy: 'startTime DESC');
-    return maps.map((map) => Session.fromMap(map)).toList();
   }
 
   Future<List<Session>> getSessionsForRange(DateTime start, DateTime end) async {
@@ -222,72 +204,108 @@ class DatabaseService {
       whereArgs: [start.toIso8601String(), end.toIso8601String()],
       orderBy: 'startTime ASC',
     );
-    return maps.map((map) => Session.fromMap(map)).toList();
-  }
-
-  Future<void> seedDummyData() async {
-    final db = await database;
-    final random = Random();
-    final now = DateTime.now();
-    
-    // Generate sessions for the last 7 days
-    for (int i = 0; i < 7; i++) {
-      final day = now.subtract(Duration(days: i));
-      // Random number of sessions per day (0 to 4)
-      final sessionCount = random.nextInt(5);
-      
-      for (int j = 0; j < sessionCount; j++) {
-        final duration = (random.nextInt(50) + 10) * 60; // 10 to 60 mins in seconds
-        final startTime = DateTime(day.year, day.month, day.day,
-          random.nextInt(12) + 8, random.nextInt(60)); // Random time between 8am and 8pm
-        
-        final session = Session(
-          startTime: startTime,
-          duration: duration,
-          isCompleted: true,
-          interruptionCount: random.nextInt(3),
-        );
-        
-        await insertSession(session);
+    return maps.map((map) {
+      final fixedMap = Map<String, dynamic>.from(map);
+      if (fixedMap['isCompleted'] is int) {
+        fixedMap['isCompleted'] = (fixedMap['isCompleted'] as int) == 1;
       }
-    }
-    print('Seeded dummy data.');
+      return Session.fromMap(fixedMap, id: map['id'] as String?);
+    }).toList();
   }
 
-  Future<void> seedDummyTasks() async {
-    final random = Random();
-    final categories = ['Work', 'Personal', 'Health', 'Errands', 'Coursework'];
-    final titles = [
-      'Finish Project Report',
-      'Grocery Shopping',
-      'Workout (Leg Day)',
-      'Call Mom',
-      'Review Pull Requests',
-      'Update Resume',
-      'Clean Apartment',
-      'Read Book',
-    ];
+  /// Replace all local sessions with Firestore data (sync)
+  Future<void> replaceAllSessions(List<Session> sessions) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('sessions');
+      for (final session in sessions) {
+        await txn.insert('sessions', {
+          'id': session.id,
+          'taskId': session.taskId,
+          'startTime': session.startTime.toIso8601String(),
+          'duration': session.duration,
+          'isCompleted': session.isCompleted ? 1 : 0,
+          'interruptionCount': session.interruptionCount,
+          'selfRating': session.selfRating,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+  }
 
-    for (int i = 0; i < 5; i++) {
-      final title = titles[random.nextInt(titles.length)];
-      final category = categories[random.nextInt(categories.length)];
-      final priority = Priority.values[random.nextInt(Priority.values.length)];
-      
-      final task = Task(
-        title: '$title ${random.nextInt(100)}',
-        description: 'Generated dummy task',
-        priority: priority,
-        durationMinutes: (random.nextInt(4) + 1) * 15, // 15, 30, 45, 60
-        category: category,
-        dueDate: DateTime.now().add(Duration(days: random.nextInt(7))),
+  // ════════════════════════════════════════════════════════════
+  // FOCUS PATTERNS
+  // ════════════════════════════════════════════════════════════
+
+  Future<void> insertFocusPattern(FocusPattern pattern) async {
+    final db = await database;
+    await db.insert(
+      'focus_patterns',
+      {
+        'id': pattern.id,
+        'sessionId': pattern.sessionId,
+        'taskId': pattern.taskId,
+        'hourOfDay': pattern.hourOfDay,
+        'dayOfWeek': pattern.dayOfWeek,
+        'durationMinutes': pattern.durationMinutes,
+        'completionRate': pattern.completionRate,
+        'interruptionCount': pattern.interruptionCount,
+        'selfRating': pattern.selfRating,
+        'category': pattern.category,
+        'priority': pattern.priority,
+        'focusScore': pattern.focusScore,
+        'createdAt': pattern.createdAt.toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<FocusPattern>> getFocusPatterns() async {
+    final db = await database;
+    final maps = await db.query('focus_patterns', orderBy: 'createdAt DESC');
+    return maps.map((map) {
+      return FocusPattern(
+        id: map['id'] as String?,
+        sessionId: map['sessionId'] as String?,
+        taskId: map['taskId'] as String?,
+        hourOfDay: map['hourOfDay'] as int,
+        dayOfWeek: map['dayOfWeek'] as int,
+        durationMinutes: (map['durationMinutes'] as num).toDouble(),
+        completionRate: (map['completionRate'] as num).toDouble(),
+        interruptionCount: map['interruptionCount'] as int? ?? 0,
+        selfRating: map['selfRating'] as int?,
+        category: map['category'] as String? ?? 'General',
+        priority: map['priority'] as int? ?? 1,
+        focusScore: (map['focusScore'] as num).toDouble(),
+        createdAt: DateTime.parse(map['createdAt'] as String),
       );
-      
-      await insertTask(task);
-    }
-    print('Seeded dummy tasks.');
+    }).toList();
   }
 
-  /// Close the database (call on app dispose if needed).
+  /// Replace all local patterns with Firestore data (sync)
+  Future<void> replaceAllPatterns(List<FocusPattern> patterns) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('focus_patterns');
+      for (final p in patterns) {
+        await txn.insert('focus_patterns', {
+          'id': p.id,
+          'sessionId': p.sessionId,
+          'taskId': p.taskId,
+          'hourOfDay': p.hourOfDay,
+          'dayOfWeek': p.dayOfWeek,
+          'durationMinutes': p.durationMinutes,
+          'completionRate': p.completionRate,
+          'interruptionCount': p.interruptionCount,
+          'selfRating': p.selfRating,
+          'category': p.category,
+          'priority': p.priority,
+          'focusScore': p.focusScore,
+          'createdAt': p.createdAt.toIso8601String(),
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+  }
+
   Future<void> close() async {
     final db = await database;
     await db.close();

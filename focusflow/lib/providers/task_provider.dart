@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
-import '../services/firestore_service.dart';
+import '../services/data_sync_service.dart';
 import '../services/notification_service.dart';
 
 /// TaskProvider = state manager for all task-related UI.
@@ -8,7 +8,7 @@ import '../services/notification_service.dart';
 /// Screens DO NOT talk to Firestore directly.
 /// They call this provider instead.
 class TaskProvider extends ChangeNotifier {
-  final FirestoreService _dbService = FirestoreService();
+  final DataSyncService _dbService = DataSyncService();
 
   List<Task> _tasks = [];
   bool _isLoading = false;
