@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../models/task.dart' as task_model;
 import '../providers/timer_provider.dart';
+import 'device_orientation_service.dart';
 
 /// NotificationService
 ///
@@ -130,6 +131,12 @@ class NotificationService {
 
   /// Should we suppress notifications (during focus session)
   Future<bool> _shouldSuppressNotification() async {
+    final orientationService = DeviceOrientationService();
+    if (orientationService.isFaceDown) {
+      debugPrint('Suppressing notification because phone is face down');
+      return true; // Always suppress if face down, even outside of active focus!
+    }
+
     if (_timerProvider?.isSessionActive == true) {
       final prefs = await SharedPreferences.getInstance();
       final focusMode = prefs.getInt('focusMode') ?? 1;
@@ -138,7 +145,16 @@ class NotificationService {
       if (focusMode == 0) return true;
 
       // Balanced (1) → suppress during focus
-      return focusMode == 1;
+      if (focusMode == 1) {
+        if (orientationService.currentState == DeviceOrientationState.held) {
+          // If the user is actively holding the phone during a balanced focus session,
+          // maybe let the notification through if they are expecting it?
+          // The issue specifically calls out: "distinguish between intentional task engagement... allowing the app to adapt notification behavior accordingly"
+          debugPrint('Allowing notification in Balanced mode because phone is being held actively.');
+          return false;
+        }
+        return true; 
+      }
     }
 
     return false;
