@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
+import '../providers/timer_provider.dart';
 import '../services/data_sync_service.dart';
 import 'add_task_screen.dart';
 import '../theme/app_theme.dart';
@@ -472,15 +473,25 @@ class _TaskTile extends StatelessWidget {
     // Check if the task is late
     return Dismissible(
       key: ValueKey(task.id),
-      direction: DismissDirection.endToStart,
+      direction: DismissDirection.horizontal,
       background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        color: task.isCompleted ? Colors.grey : Colors.green,
+        child: Icon(task.isCompleted ? Icons.undo : Icons.check, color: Colors.white),
+      ),
+      secondaryBackground: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         color: Colors.red,
         child: const Icon(Icons.delete, color: Colors.white),
       ),
-      confirmDismiss: (_) async {
-        onDelete();
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.endToStart) {
+          onDelete();
+        } else if (direction == DismissDirection.startToEnd) {
+          onToggle();
+        }
         return false;
       },
       child: Container(
@@ -528,7 +539,7 @@ class _TaskTile extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.background,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isOverdue ? Colors.red : Colors.grey.shade300,
@@ -559,7 +570,7 @@ class _TaskTile extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.background,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey.shade300),
                     boxShadow: const [
@@ -589,6 +600,59 @@ class _TaskTile extends StatelessWidget {
             ).textTheme.bodySmall?.copyWith(color: Colors.grey),
           ),
           onTap: onTap,
+          onLongPress: () {
+            showModalBottomSheet(
+              context: context,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              builder: (ctx) => SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.timer),
+                      title: const Text('Start Focus Session'),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        // Access TimerProvider and set task, then navigate to Focus screen
+                        final timerProvider = context.read<TimerProvider>();
+                        timerProvider.selectTask(task);
+                        // The user will swipe to Focus view manually, or we can use a callback to navigate
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Task "${task.title}" selected for Focus')),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.edit),
+                      title: const Text('Edit Task'),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        onTap();
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(task.isCompleted ? Icons.undo : Icons.check),
+                      title: Text(task.isCompleted ? 'Mark as Incomplete' : 'Mark as Complete'),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        onToggle();
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.delete, color: Colors.red),
+                      title: const Text('Delete Task', style: TextStyle(color: Colors.red)),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        onDelete();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

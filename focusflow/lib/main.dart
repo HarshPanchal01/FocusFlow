@@ -93,6 +93,7 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
+  late PageController _pageController;
 
   final List<Widget> _screens = const [
     TodayScreen(),
@@ -102,10 +103,24 @@ class _MainScaffoldState extends State<MainScaffold> {
     SettingsScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _selectedIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -120,7 +135,17 @@ class _MainScaffoldState extends State<MainScaffold> {
           // Connectivity banner — only visible when offline or just reconnected
           const ConnectivityBanner(),
           // Main screen content
-          Expanded(child: _screens[_selectedIndex]),
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              children: _screens,
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
