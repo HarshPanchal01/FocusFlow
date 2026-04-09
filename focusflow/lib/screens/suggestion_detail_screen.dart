@@ -3,8 +3,6 @@ import 'package:intl/intl.dart';
 import '../models/suggestion.dart';
 import '../services/ml_service.dart';
 import '../services/suggestion_analytics_service.dart';
-import '../theme/app_theme.dart';
-
 /// Detail view for a single suggestion: completion estimate, conflicts, ML context.
 class SuggestionDetailScreen extends StatefulWidget {
   const SuggestionDetailScreen({
@@ -67,13 +65,14 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
   Widget build(BuildContext context) {
     final s = widget.suggestion;
     final timeFmt = DateFormat('EEE, MMM d · h:mm a');
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: const Text('Suggestion details'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -84,7 +83,7 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
               s.task.title,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
             ),
             if (s.task.description.isNotEmpty) ...[
@@ -92,17 +91,18 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
               Text(
                 s.task.description,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: colorScheme.onSurface.withValues(alpha: 0.75),
                     ),
               ),
             ],
             const SizedBox(height: 16),
             _metaRow(
+              context,
               Icons.schedule,
               '${timeFmt.format(s.suggestedStartTime)} – ${DateFormat('h:mm a').format(s.suggestedEndTime)}',
             ),
-            _metaRow(Icons.timer_outlined, '${s.task.durationMinutes} min blocked'),
-            _metaRow(Icons.category_outlined, s.task.category),
+            _metaRow(context, Icons.timer_outlined, '${s.task.durationMinutes} min blocked'),
+            _metaRow(context, Icons.category_outlined, s.task.category),
             const SizedBox(height: 20),
             if (_loading)
               const Padding(
@@ -112,7 +112,7 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
             else if (_error != null)
               Text(
                 'Could not load analytics: $_error',
-                style: const TextStyle(color: Colors.redAccent),
+                style: TextStyle(color: colorScheme.error),
               )
             else if (_insight != null) ...[
               _buildCompletionCard(context, _insight!),
@@ -126,17 +126,17 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
               _sectionTitle(context, 'Scheduling insight'),
               Card(
                 elevation: 0,
-                color: AppColors.surface,
+                color: colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: AppColors.divider),
+                  side: BorderSide(color: colorScheme.outlineVariant),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
                   child: Text(
                     _insight!.mlSchedulingTip,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: colorScheme.onSurface.withValues(alpha: 0.8),
                           height: 1.35,
                         ),
                   ),
@@ -149,20 +149,21 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
     );
   }
 
-  Widget _metaRow(IconData icon, String text) {
+  Widget _metaRow(BuildContext context, IconData icon, String text) {
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: AppColors.textSecondary),
+          Icon(icon, size: 18, color: muted),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: muted,
               ),
             ),
           ),
@@ -172,30 +173,32 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
   }
 
   Widget _sectionTitle(BuildContext context, String title) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: cs.onSurface,
             ),
       ),
     );
   }
 
   Widget _buildCompletionCard(BuildContext context, SuggestionInsight i) {
+    final colorScheme = Theme.of(context).colorScheme;
     final pct = (i.completionProbability * 100).round();
-    Color c = Colors.orange;
-    if (pct >= 70) c = Colors.green.shade700;
-    if (pct < 45) c = Colors.deepOrange;
+    Color c = Colors.orange.shade400;
+    if (pct >= 70) c = Colors.green.shade400;
+    if (pct < 45) c = Colors.deepOrange.shade300;
 
     return Card(
       elevation: 0,
-      color: AppColors.primary.withValues(alpha: 0.08),
+      color: colorScheme.primaryContainer.withValues(alpha: 0.45),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.25)),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.35)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -213,15 +216,15 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
                       CircularProgressIndicator(
                         value: i.completionProbability.clamp(0.0, 1.0),
                         strokeWidth: 8,
-                        backgroundColor: AppColors.divider,
-                        color: AppColors.primary,
+                        backgroundColor: colorScheme.surfaceContainerHigh,
+                        color: colorScheme.primary,
                       ),
                       Text(
                         '$pct%',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -236,7 +239,7 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
                         'Estimated completion chance',
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: colorScheme.onSurface,
                             ),
                       ),
                       const SizedBox(height: 4),
@@ -244,7 +247,7 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
                         'How likely a focus block for this task finishes successfully, '
                         'from your history and schedule fit.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
+                              color: colorScheme.onSurface.withValues(alpha: 0.75),
                             ),
                       ),
                     ],
@@ -270,14 +273,14 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
                         ? Icons.check_circle_outline
                         : Icons.info_outline,
                     size: 18,
-                    color: AppColors.textSecondary,
+                    color: colorScheme.onSurface.withValues(alpha: 0.65),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       i.focusWindowNote!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
+                            color: colorScheme.onSurface.withValues(alpha: 0.75),
                           ),
                     ),
                   ),
@@ -291,19 +294,21 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
   }
 
   Widget _buildConflicts(BuildContext context, SuggestionInsight i) {
+    final cs = Theme.of(context).colorScheme;
     if (i.conflicts.isEmpty) {
       return Card(
         elevation: 0,
-        color: AppColors.surface,
+        color: cs.surfaceContainerHighest,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: AppColors.divider),
+          side: BorderSide(color: cs.outlineVariant),
         ),
-        child: const ListTile(
-          leading: Icon(Icons.check_circle, color: Colors.green),
-          title: Text('No time overlap'),
+        child: ListTile(
+          leading: Icon(Icons.check_circle, color: Colors.green.shade400),
+          title: Text('No time overlap', style: TextStyle(color: cs.onSurface)),
           subtitle: Text(
             'No other suggested tasks share this time window.',
+            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.7)),
           ),
         ),
       );
@@ -314,18 +319,21 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           elevation: 0,
-          color: AppColors.surface,
+          color: cs.surfaceContainerHighest,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.orange.withValues(alpha: 0.5)),
+            side: BorderSide(color: Colors.orange.withValues(alpha: 0.55)),
           ),
           child: ListTile(
             leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
             title: Text(
               c.otherTaskTitle,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(fontWeight: FontWeight.w600, color: cs.onSurface),
             ),
-            subtitle: Text(c.detail),
+            subtitle: Text(
+              c.detail,
+              style: TextStyle(color: cs.onSurface.withValues(alpha: 0.8)),
+            ),
           ),
         );
       }).toList(),
@@ -379,28 +387,39 @@ class _SuggestionDetailScreenState extends State<SuggestionDetailScreen> {
   }
 
   Widget _infoTile(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        elevation: 0,
-        color: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: AppColors.divider),
-        ),
-        child: ListTile(
-          leading: Icon(icon, color: AppColors.primary),
-          title: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-          subtitle: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w500,
+    return Builder(
+      builder: (context) {
+        final cs = Theme.of(context).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Card(
+            elevation: 0,
+            color: cs.surfaceContainerHighest,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: cs.outlineVariant),
+            ),
+            child: ListTile(
+              leading: Icon(icon, color: cs.primary),
+              title: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withValues(alpha: 0.65),
+                ),
+              ),
+              subtitle: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

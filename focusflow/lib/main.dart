@@ -11,12 +11,12 @@ import 'services/auth_service.dart';
 import 'services/data_sync_service.dart';
 import 'services/connectivity_service.dart';
 import 'widgets/connectivity_banner.dart';
+import 'providers/theme_provider.dart';
 import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
 import 'screens/suggestions_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/settings_screen.dart';
-import 'theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 
 void main() async {
@@ -74,11 +74,18 @@ class FocusFlowApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InsightsProvider()),
         ChangeNotifierProvider(create: (_) => SchedulingProvider()),
         ChangeNotifierProvider.value(value: ConnectivityService()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'FocusFlow',
-        theme: appTheme,
-        home: const LoginScreen(),
+      child: Builder(
+        builder: (context) {
+          final themeProvider = context.watch<ThemeProvider>();
+          return MaterialApp(
+            title: 'FocusFlow',
+            theme: themeProvider.getTheme(MediaQuery.of(context).platformBrightness),
+            home: const LoginScreen(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }
@@ -125,10 +132,12 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: const Text('FocusFlow', style: TextStyle(color: Colors.white)),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: colorScheme.primary,
       ),
       body: Column(
         children: [

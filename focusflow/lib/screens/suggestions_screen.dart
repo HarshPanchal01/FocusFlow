@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../theme/app_theme.dart';
 import '../providers/scheduling_provider.dart';
 import '../providers/task_provider.dart';
 import '../models/suggestion.dart';
@@ -67,15 +66,17 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         ? '$hours ${hours == 1 ? 'hr' : 'hrs'}'
         : '$minutes min';
     
-    return '$durationStr · $dateStr $timeStr';
+    return '$durationStr ? $dateStr $timeStr';
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: colorScheme.primary,
         elevation: 0,
         toolbarHeight: 0, // Hide the AppBar content
       ),
@@ -86,6 +87,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
           }
 
           if (provider.suggestions.isEmpty) {
+            final muted = colorScheme.onSurface.withValues(alpha: 0.65);
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -93,21 +95,24 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   Icon(
                     Icons.lightbulb_outline,
                     size: 64,
-                    color: AppColors.textSecondary,
+                    color: muted,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'No suggestions available',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: muted,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Complete some focus sessions to get personalized scheduling suggestions',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      'Complete some focus sessions to get personalized scheduling suggestions',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: muted,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -155,12 +160,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Widget _buildFocusWindowsCard(BuildContext context, SchedulingProvider provider) {
+    final colorScheme = Theme.of(context).colorScheme;
     final dayNames = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: colorScheme.primary,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
@@ -224,7 +230,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -236,7 +242,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '$qualityLabel — $hourStr',
+                            '$qualityLabel ? $hourStr',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -244,7 +250,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                             ),
                           ),
                           Text(
-                            '$daysStr • ${window.sessionCount} sessions • '
+                            '$daysStr ? ${window.sessionCount} sessions ? '
                             '${window.avgDurationMinutes.round()} min avg',
                             style: const TextStyle(
                               color: Colors.white70,
@@ -281,14 +287,16 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Widget _buildDataCollectionCard(BuildContext context, SchedulingProvider provider) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final sessionsNeeded = 3 - provider.totalPatterns;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),
@@ -301,7 +309,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Icon(Icons.auto_awesome, color: AppColors.primary, size: 28),
+          Icon(Icons.auto_awesome, color: colorScheme.primary, size: 28),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -309,17 +317,17 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               children: [
                 Text(
                   'Learning Your Patterns',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Complete $sessionsNeeded more focus session${sessionsNeeded == 1 ? '' : 's'} '
                   'with a rating to unlock ML-powered scheduling.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.75),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -329,8 +337,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   child: LinearProgressIndicator(
                     value: provider.totalPatterns / 3.0,
                     minHeight: 6,
-                    backgroundColor: AppColors.divider,
-                    color: AppColors.primary,
+                    backgroundColor: colorScheme.surfaceContainerHigh,
+                    color: colorScheme.primary,
                   ),
                 ),
               ],
@@ -353,10 +361,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     Suggestion suggestion,
     SchedulingProvider provider,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),
@@ -399,15 +410,15 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.secondary.withValues(alpha: 0.7),
+                            color: colorScheme.secondaryContainer,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             _formatSuggestionType(suggestion.type),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
+                              color: colorScheme.onSecondaryContainer,
                             ),
                           ),
                         ),
@@ -429,11 +440,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                             '${(suggestion.confidence * 100).toInt()}%',
                             style: TextStyle(
                               fontSize: 10,
+                              fontWeight: FontWeight.w600,
                               color: suggestion.confidence > 0.7
-                                  ? Colors.green.shade700
+                                  ? Colors.green.shade400
                                   : suggestion.confidence > 0.4
-                                      ? Colors.orange.shade700
-                                      : Colors.grey.shade700,
+                                      ? Colors.orange.shade400
+                                      : colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                           ),
                         ),
@@ -445,16 +457,16 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                         Expanded(
                           child: Text(
                             suggestion.task.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: colorScheme.onSurface,
                             ),
                           ),
                         ),
                         Icon(
                           Icons.chevron_right,
-                          color: AppColors.textSecondary.withValues(alpha: 0.8),
+                          color: colorScheme.onSurface.withValues(alpha: 0.45),
                           size: 22,
                         ),
                       ],
@@ -465,27 +477,27 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                         suggestion.suggestedStartTime,
                         suggestion.suggestedEndTime,
                       ),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,
-                        color: AppColors.textSecondary,
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       suggestion.reason,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: AppColors.textSecondary,
+                        color: colorScheme.onSurface.withValues(alpha: 0.75),
                       ),
                     ),
                     if (suggestion.task.description.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
                         suggestion.task.description,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: colorScheme.onSurface.withValues(alpha: 0.65),
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -496,7 +508,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                       'Tap for completion odds & conflicts',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.primary.withValues(alpha: 0.9),
+                        color: colorScheme.primary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -514,8 +526,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               Expanded(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textOnPrimary,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -536,9 +548,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
+                    foregroundColor: colorScheme.onSurface,
                     side: BorderSide(
-                      color: AppColors.secondary,
+                      color: colorScheme.outline,
                       width: 1.5,
                     ),
                     shape: RoundedRectangleBorder(
