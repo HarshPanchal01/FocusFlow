@@ -224,16 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             style: theme.textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 12),
-                          if (hasPermanentAccount)
-                            OutlinedButton(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Edit Profile not implemented yet')),
-                                );
-                              },
-                              child: const Text('Edit Profile'),
-                            )
-                          else
+                          if (!hasPermanentAccount)
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: colorScheme.primary,

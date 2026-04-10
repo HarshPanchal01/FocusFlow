@@ -10,7 +10,9 @@ import 'services/notification_service.dart';
 import 'services/auth_service.dart';
 import 'services/data_sync_service.dart';
 import 'services/connectivity_service.dart';
+import 'services/sound_service.dart';
 import 'widgets/connectivity_banner.dart';
+import 'utils/haptic_utils.dart';
 import 'providers/theme_provider.dart';
 import 'screens/today_screen.dart';
 import 'screens/focus_screen.dart';
@@ -18,6 +20,7 @@ import 'screens/suggestions_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +53,10 @@ void main() async {
     // Start monitoring connectivity for offline/online banners
     debugPrint('Initializing connectivity monitoring...');
     await ConnectivityService().initialize();
+
+    // Generate sound effects (droplet tone for splash)
+    debugPrint('Initializing sound service...');
+    await SoundService().initialize();
   } catch (e, stackTrace) {
     debugPrint('ERROR DURING INITIALIZATION: $e');
     debugPrint('STACKTRACE: $stackTrace');
@@ -82,7 +89,7 @@ class FocusFlowApp extends StatelessWidget {
           return MaterialApp(
             title: 'FocusFlow',
             theme: themeProvider.getTheme(MediaQuery.of(context).platformBrightness),
-            home: const LoginScreen(),
+            home: const SplashScreen(),
             debugShowCheckedModeBanner: false,
           );
         },
@@ -123,6 +130,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   void _onItemTapped(int index) {
+    HapticUtils.lightTap();
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),

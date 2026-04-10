@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../services/data_sync_service.dart';
 import '../services/notification_service.dart';
+import '../utils/haptic_utils.dart';
+import '../utils/input_sanitizer.dart';
 
 /// TaskProvider = state manager for all task-related UI.
 ///
@@ -67,11 +69,20 @@ class TaskProvider extends ChangeNotifier {
   /// Add new task
   Future<void> addTask(Task task) async {
     try {
-      final inserted = await _dbService.insertTask(task);
+      // Sanitize user inputs before saving
+      final sanitizedTask = task.copyWith(
+        title: InputSanitizer.sanitizeTitle(task.title),
+        description: InputSanitizer.sanitizeDescription(task.description),
+        category: InputSanitizer.sanitizeCategory(task.category),
+      );
+
+      final inserted = await _dbService.insertTask(sanitizedTask);
 
       _tasks.add(inserted);
       _sortTasks();
       notifyListeners();
+
+      HapticUtils.successBuzz(); // Satisfying feedback on task creation
 
       // Schedule reminder if due date exists
       if (inserted.dueDate != null) {
@@ -85,20 +96,27 @@ class TaskProvider extends ChangeNotifier {
   /// Update existing task
   Future<void> updateTask(Task task) async {
     try {
-      await _dbService.updateTask(task);
+      // Sanitize user inputs before saving
+      final sanitizedTask = task.copyWith(
+        title: InputSanitizer.sanitizeTitle(task.title),
+        description: InputSanitizer.sanitizeDescription(task.description),
+        category: InputSanitizer.sanitizeCategory(task.category),
+      );
 
-      final index = _tasks.indexWhere((t) => t.id == task.id);
+      await _dbService.updateTask(sanitizedTask);
+
+      final index = _tasks.indexWhere((t) => t.id == sanitizedTask.id);
       if (index != -1) {
-        _tasks[index] = task;
+        _tasks[index] = sanitizedTask;
         _sortTasks();
         notifyListeners();
 
         // Re-schedule notification
-        if (task.dueDate != null && task.id != null) {
+        if (sanitizedTask.dueDate != null && sanitizedTask.id != null) {
           await NotificationService()
-              .cancelNotification(task.id.hashCode);
+              .cancelNotification(sanitizedTask.id.hashCode);
 
-          await NotificationService().scheduleTaskReminder(task);
+          await NotificationService().scheduleTaskReminder(sanitizedTask);
         }
       }
     } catch (e) {
@@ -108,6 +126,7 @@ class TaskProvider extends ChangeNotifier {
 
   /// Toggle complete/incomplete
   Future<void> toggleCompletion(Task task) async {
+    HapticUtils.lightTap(); // Satisfying tick on checkbox
     final updated = task.copyWith(
       isCompleted: !task.isCompleted,
     );
@@ -117,6 +136,7 @@ class TaskProvider extends ChangeNotifier {
   /// Delete task
   Future<void> deleteTask(String id) async {
     try {
+      HapticUtils.heavyTap(); // Weighty feel for destructive action
       await _dbService.deleteTask(id);
 
       _tasks.removeWhere((t) => t.id == id);
