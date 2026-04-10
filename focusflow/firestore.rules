@@ -1,0 +1,76 @@
+rules_version = '2';
+
+// FocusFlow Firestore Security Rules
+//
+// Architecture: users/{uid}/tasks, users/{uid}/sessions, users/{uid}/focus_patterns
+// Each user can only read/write their own documents.
+// No cross-user access is permitted.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // User document — owner only
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Tasks collection — owner only, with field validation
+      match /tasks/{taskId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null
+                      && request.auth.uid == userId
+                      && validateTask(request.resource.data);
+        allow update: if request.auth != null
+                      && request.auth.uid == userId
+                      && validateTask(request.resource.data);
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Sessions collection — owner only
+      match /sessions/{sessionId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null
+                      && request.auth.uid == userId
+                      && validateSession(request.resource.data);
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Focus patterns collection (ML data) — owner only
+      match /focus_patterns/{patternId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Deny all access to any other path
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// Validate task document fields
+function validateTask(data) {
+  return data.keys().hasAll(['title', 'priority', 'isCompleted', 'createdAt', 'updatedAt'])
+      && data.title is string
+      && data.title.size() > 0
+      && data.title.size() <= 200
+      && data.priority is int
+      && data.priority >= 0
+      && data.priority <= 2
+      && data.durationMinutes is int
+      && data.durationMinutes > 0
+      && data.durationMinutes <= 480;
+}
+
+// Validate session document fields
+function validateSession(data) {
+  return data.keys().hasAll(['startTime', 'duration', 'isCompleted'])
+      && data.duration is int
+      && data.duration >= 0
+      && (data.selfRating == null || (data.selfRating is int && data.selfRating >= 1 && data.selfRating <= 5))
+      && data.interruptionCount is int
+      && data.interruptionCount >= 0;
+}

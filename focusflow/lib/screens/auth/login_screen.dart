@@ -15,6 +15,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  int _loginAttempts = 0;
+  DateTime? _lockoutUntil;
 
   @override
   void dispose() {
@@ -24,12 +26,37 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    // Rate limiting: max 5 attempts, then 30 second cooldown
+    if (_lockoutUntil != null && DateTime.now().isBefore(_lockoutUntil!)) {
+      final remaining = _lockoutUntil!.difference(DateTime.now()).inSeconds;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Too many attempts. Try again in $remaining seconds.')),
+      );
+      return;
+    }
+
+    // Basic input validation
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email and password')),
+      );
+      return;
+    }
+
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      await AuthService().signIn(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
+      await AuthService().signIn(email, password);
+      _loginAttempts = 0; // Reset on success
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -37,9 +64,14 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
+      _loginAttempts++;
+      if (_loginAttempts >= 5) {
+        _lockoutUntil = DateTime.now().add(const Duration(seconds: 30));
+        _loginAttempts = 0;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: $e')),
+          SnackBar(content: Text('Login failed: ${e.toString().replaceAll(RegExp(r'\[.*?\]'), '').trim()}')),
         );
       }
     } finally {

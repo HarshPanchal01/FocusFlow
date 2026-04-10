@@ -8,6 +8,7 @@ import '../services/ml_service.dart';
 import '../services/notification_service.dart';
 import '../services/device_orientation_service.dart';
 import '../services/phone_activity_service.dart';
+import '../utils/haptic_utils.dart';
 
 /// TimerProvider manages focus session state and lifecycle.
 ///
@@ -127,6 +128,8 @@ class TimerProvider extends ChangeNotifier {
   void startTimer({bool resume = false}) {
     if (_totalSeconds <= 0) return;
 
+    if (!resume) HapticUtils.mediumTap(); // Satisfying start feedback
+
     _isRunning = true;
     _isSessionActive = true;
 
@@ -170,6 +173,7 @@ class TimerProvider extends ChangeNotifier {
 
   /// Timer finished naturally.
   void _completeSession() {
+    HapticUtils.successBuzz(); // Celebration buzz on completion
     _endSession(completed: true);
 
     NotificationService().scheduleFocusSessionComplete(DateTime.now()).catchError((e) {
@@ -211,6 +215,7 @@ class TimerProvider extends ChangeNotifier {
   /// Saves the session to Firestore and triggers ML feature extraction.
   Future<void> submitRating(int? rating) async {
     if (_pendingSession == null) return;
+    HapticUtils.mediumTap(); // Feedback on rating submit
 
     // Apply the rating to the session
     final session = Session(
@@ -260,6 +265,11 @@ class TimerProvider extends ChangeNotifier {
   /// Types: "Left App", "Phone Call", "Someone Talked to Me", etc.
   void logInterruption(String type) {
     if (!_isSessionActive) return;
+
+    // Haptic only for manual logs, not auto-detected
+    if (type != 'Picked Up Phone (Auto-Detected)' && !_isAutoDetectedType(type)) {
+      HapticUtils.lightTap();
+    }
 
     if (type == 'Picked Up Phone (Auto-Detected)' || _isAutoDetectedType(type)) {
       _lastAutoInterruptionTime = DateTime.now();

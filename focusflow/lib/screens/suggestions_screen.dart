@@ -5,6 +5,7 @@ import '../providers/scheduling_provider.dart';
 import '../providers/task_provider.dart';
 import '../models/suggestion.dart';
 import 'suggestion_detail_screen.dart';
+import '../widgets/shimmer_effect.dart';
 
 class SuggestionsScreen extends StatefulWidget {
   const SuggestionsScreen({super.key});
@@ -133,7 +134,10 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               children: [
                 // ML Focus Windows section (shows when enough data exists)
                 if (provider.hasMLData && provider.focusWindows.isNotEmpty)
-                  _buildFocusWindowsCard(context, provider),
+                  ShimmerEffect(
+                    animate: provider.hasMLData,
+                    child: _buildFocusWindowsCard(context, provider),
+                  ),
 
                 // Data collection progress (shows when not enough data yet)
                 if (!provider.hasMLData)

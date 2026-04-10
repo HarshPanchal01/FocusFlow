@@ -6,6 +6,9 @@ import '../models/task.dart';
 import '../providers/task_provider.dart';
 import '../providers/timer_provider.dart';
 import '../services/data_sync_service.dart';
+import '../widgets/animated_task_checkbox.dart';
+import '../widgets/pulsing_border.dart';
+import '../utils/page_transitions.dart';
 import 'add_task_screen.dart';
 
 /// TODAY screen/the main hub.
@@ -28,14 +31,14 @@ class _TodayScreenState extends State<TodayScreen> {
   void _openAddTask() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const AddTaskScreen()),
+      SlideUpRoute(page: const AddTaskScreen()),
     );
   }
 
   void _openEditTask(Task task) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => AddTaskScreen(existingTask: task)),
+      SlideUpRoute(page: AddTaskScreen(existingTask: task)),
     );
   }
 
@@ -434,6 +437,15 @@ class _TaskTile extends StatelessWidget {
         task.dueDate!.isBefore(DateTime.now()) &&
         !task.isCompleted;
 
+    // Check if due today (within the next 24 hours)
+    final isDueSoon = !isOverdue &&
+        task.dueDate != null &&
+        !task.isCompleted &&
+        task.dueDate!.difference(DateTime.now()).inHours <= 24;
+
+    // Should this task pulse to draw attention?
+    final isUrgent = isOverdue || isDueSoon;
+
     return Dismissible(
       key: ValueKey(task.id),
       direction: DismissDirection.horizontal,
@@ -457,40 +469,42 @@ class _TaskTile extends StatelessWidget {
         }
         return false;
       },
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.5)),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 8,
-              spreadRadius: 0.5,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
+      child: PulsingBorder(
+        active: isUrgent,
+        color: isOverdue ? Colors.red : Colors.orange,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            border: isUrgent ? null : Border.all(color: colorScheme.primary.withValues(alpha: 0.5)),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 8,
+                spreadRadius: 0.5,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 8,
             vertical: 0,
           ),
-          leading: Checkbox(
+          leading: AnimatedTaskCheckbox(
             value: task.isCompleted,
             onChanged: (_) => onToggle(),
             activeColor: colorScheme.primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
-            ),
           ),
-          title: Text(
-            task.title,
+          title: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 300),
             style: TextStyle(
               decoration: task.isCompleted ? TextDecoration.lineThrough : null,
               color: task.isCompleted ? Colors.grey : colorScheme.onSurface,
+              fontSize: 16,
             ),
+            child: Text(task.title),
           ),
           subtitle: Row(
             children: [
@@ -609,6 +623,7 @@ class _TaskTile extends StatelessWidget {
             );
           },
         ),
+      ),
       ),
     );
   }

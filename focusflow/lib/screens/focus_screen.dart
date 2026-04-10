@@ -4,6 +4,9 @@ import 'package:flutter/cupertino.dart';
 import '../providers/task_provider.dart';
 import '../providers/timer_provider.dart';
 import '../models/task.dart';
+import '../utils/haptic_utils.dart';
+import '../widgets/pulsing_text.dart';
+import '../widgets/celebration_overlay.dart';
 
 bool _isAutoInterruption(String? type) {
   if (type == null) return false;
@@ -67,16 +70,6 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Auto-select first task if none selected
-    final timerProvider = context.read<TimerProvider>();
-    final taskProvider = context.read<TaskProvider>();
-    
-    if (timerProvider.selectedTask == null && taskProvider.incompleteTasks.isNotEmpty) {
-      // Defer to next frame to avoid setState during build
-      Future.microtask(() {
-        timerProvider.selectTask(taskProvider.incompleteTasks.first);
-      });
-    }
   }
 
   void _showTimerPicker() async {
@@ -164,7 +157,10 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                       final labels = ['😵', '😕', '😐', '🙂', '🔥'];
                       final isSelected = selectedRating == rating;
                       return GestureDetector(
-                        onTap: () => setDialogState(() => selectedRating = rating),
+                        onTap: () {
+                          HapticUtils.selectionTick();
+                          setDialogState(() => selectedRating = rating);
+                        },
                         child: Container(
                           width: 48,
                           height: 48,
@@ -201,6 +197,13 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     timer.skipRating();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Session saved'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
                   },
                   child: const Text('Skip'),
                 ),
@@ -209,6 +212,13 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                       ? () {
                           Navigator.of(ctx).pop();
                           timer.submitRating(selectedRating);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Focus pattern recorded ✨'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
@@ -284,12 +294,53 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    // Watch TaskProvider so we rebuild when tasks change (edit/delete on other screens)
+    final taskProvider = context.watch<TaskProvider>();
+
     return Consumer<TimerProvider>(
       builder: (context, timer, _) {
+        // Validate selected task still exists in the task list
+        if (!timer.isSessionActive && timer.selectedTask != null) {
+          final stillExists = taskProvider.incompleteTasks.any(
+            (t) => t.id == timer.selectedTask!.id,
+          );
+          if (!stillExists) {
+            // Task was deleted or completed — clear selection
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (taskProvider.incompleteTasks.isNotEmpty) {
+                timer.selectTask(taskProvider.incompleteTasks.first);
+              } else {
+                timer.selectTask(null);
+              }
+            });
+          } else {
+            // Task might have been edited (duration changed) — update timer
+            final currentTask = taskProvider.incompleteTasks.firstWhere(
+              (t) => t.id == timer.selectedTask!.id,
+            );
+            if (currentTask.durationMinutes != timer.selectedTask!.durationMinutes) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                timer.selectTask(currentTask);
+              });
+            }
+          }
+        }
+
+        // Auto-select first task if nothing selected
+        if (!timer.isSessionActive && timer.selectedTask == null &&
+            taskProvider.incompleteTasks.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            timer.selectTask(taskProvider.incompleteTasks.first);
+          });
+        }
+
         // Show rating dialog when session just ended
         if (timer.isAwaitingRating && !_isRatingDialogShown) {
           _isRatingDialogShown = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Show celebration particles
+            CelebrationOverlay.show(context);
+            // Then show rating dialog
             _showRatingDialog(context, timer);
           });
         }
@@ -577,8 +628,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
 
     return Column(
       children: [
-        Text(
-          _formatTime(timer.secondsLeft),
+        PulsingText(
+          text: _formatTime(timer.secondsLeft),
+          isActive: timer.isRunning,
           style: theme.textTheme.titleLarge?.copyWith(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
